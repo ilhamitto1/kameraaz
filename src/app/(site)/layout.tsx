@@ -4,13 +4,35 @@ import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { getNavigation, getPublicSettings } from "@/actions/admin";
 import { getCategories } from "@/actions/catalog";
+import { DEFAULT_SETTINGS } from "@/lib/settings";
+import { unstable_cache } from "next/cache";
+
+const getSiteShell = unstable_cache(
+  async () => {
+    const [settings, nav, categories] = await Promise.all([
+      getPublicSettings(),
+      getNavigation(),
+      getCategories(),
+    ]);
+    return { settings, nav, categories };
+  },
+  ["site-shell-v1"],
+  { revalidate: 60 },
+);
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
-  const [settings, nav, categories] = await Promise.all([
-    getPublicSettings(),
-    getNavigation(),
-    getCategories(),
-  ]);
+  let settings = DEFAULT_SETTINGS;
+  let nav: { label: string; href: string }[] = [];
+  let categories: Awaited<ReturnType<typeof getCategories>> = [];
+
+  try {
+    const shell = await getSiteShell();
+    settings = shell.settings;
+    nav = shell.nav;
+    categories = shell.categories;
+  } catch (err) {
+    console.error("[site-layout] shell load failed", err);
+  }
 
   const items = nav.map((n) => {
     const cat = categories.find((c) => n.href.includes(c.slug));

@@ -37,7 +37,8 @@ export default async function ProductPage({ params }: Props) {
   ]);
   if (!product) notFound();
 
-  await incrementView(product.id as string);
+  // Don't block the page if analytics write fails (pooler / cold start)
+  void incrementView(product.id as string);
 
   const related = await getProducts({
     categorySlug: (product.category as { slug: string })?.slug,

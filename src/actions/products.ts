@@ -4,7 +4,7 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { logActivity } from "@/lib/activity-log";
 import { productSchema } from "@/lib/validations/product";
-import { slugify, decimalToNumber } from "@/lib/utils";
+import { slugify } from "@/lib/utils";
 import { AvailabilityStatus, Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
@@ -15,13 +15,20 @@ async function requireAdmin() {
 }
 
 function serializeProduct(p: Record<string, unknown>) {
-  return {
-    ...p,
-    dailyPrice: decimalToNumber(p.dailyPrice as never),
-    weeklyPrice: decimalToNumber(p.weeklyPrice as never),
-    monthlyPrice: decimalToNumber(p.monthlyPrice as never),
-    deposit: decimalToNumber(p.deposit as never),
-  } as Record<string, unknown>;
+  // Deep-convert Prisma Decimal / nested relations for Client Components
+  return JSON.parse(
+    JSON.stringify(p, (_key, value) => {
+      if (
+        value !== null &&
+        typeof value === "object" &&
+        typeof (value as { toNumber?: unknown }).toNumber === "function"
+      ) {
+        return Number((value as { toNumber: () => number }).toNumber());
+      }
+      if (typeof value === "bigint") return Number(value);
+      return value;
+    }),
+  ) as Record<string, unknown>;
 }
 
 const productInclude = {
@@ -522,11 +529,15 @@ export async function reorderProducts(orderedIds: string[]) {
 }
 
 export async function incrementView(productId: string) {
-  await prisma.product.update({
-    where: { id: productId },
-    data: { viewCount: { increment: 1 } },
-  });
-  await prisma.productView.create({ data: { productId } });
+  try {
+    await prisma.product.update({
+      where: { id: productId },
+      data: { viewCount: { increment: 1 } },
+    });
+    await prisma.productView.create({ data: { productId } });
+  } catch (err) {
+    console.error("[incrementView]", err);
+  }
 }
 
 export async function trackWhatsAppClick(productId: string | null, priceType?: string, source?: string) {

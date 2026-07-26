@@ -3,6 +3,7 @@ import { getCategories, getBrands } from "@/actions/catalog";
 import { ProductCard } from "@/components/products/ProductCard";
 import { CatalogClient } from "@/components/products/CatalogClient";
 import type { AvailabilityStatus } from "@prisma/client";
+import { AvailabilityStatus as StatusEnum } from "@prisma/client";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -19,12 +20,18 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
     return Array.isArray(v) ? v[0] : v;
   };
 
+  const statusRaw = get("status");
+  const status =
+    statusRaw && (Object.values(StatusEnum) as string[]).includes(statusRaw)
+      ? (statusRaw as AvailabilityStatus)
+      : undefined;
+
   const page = Number(get("sehife") || 1);
   const [result, categories, brands] = await Promise.all([
     getProducts({
       categorySlug: get("kateqoriya"),
       brandSlug: get("marka"),
-      status: get("status") as AvailabilityStatus | undefined,
+      status,
       isFeatured: get("secilmis") === "1" || undefined,
       isNew: get("yeni") === "1" || undefined,
       search: get("q"),
