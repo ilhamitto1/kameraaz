@@ -1,0 +1,258 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AvailabilityStatus {
+  AVAILABLE
+  RESERVED
+  RENTED
+  SERVICE
+  UNAVAILABLE
+}
+
+enum MessageStatus {
+  NEW
+  READ
+  REPLIED
+  ARCHIVED
+}
+
+enum PriceType {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+model User {
+  id           String        @id @default(cuid())
+  email        String        @unique
+  passwordHash String
+  name         String
+  role         String        @default("ADMIN")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  activityLogs ActivityLog[]
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String
+  slug        String    @unique
+  description String?
+  image       String?
+  icon        String?
+  sortOrder   Int       @default(0)
+  isVisible   Boolean   @default(true)
+  showInNav   Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+  products    Product[]
+}
+
+model Brand {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  logo      String?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+  products  Product[]
+}
+
+model Product {
+  id               String             @id @default(cuid())
+  name             String
+  slug             String             @unique
+  sku              String?            @unique
+  shortDesc        String?
+  longDesc         String?
+  dailyPrice       Decimal?           @db.Decimal(10, 2)
+  weeklyPrice      Decimal?           @db.Decimal(10, 2)
+  monthlyPrice     Decimal?           @db.Decimal(10, 2)
+  deposit          Decimal?           @db.Decimal(10, 2)
+  showDailyPrice   Boolean            @default(true)
+  showWeeklyPrice  Boolean            @default(true)
+  showMonthlyPrice Boolean            @default(false)
+  mainImage        String?
+  status           AvailabilityStatus @default(AVAILABLE)
+  badge            String?
+  sortOrder        Int                @default(0)
+  isFeatured       Boolean            @default(false)
+  isActive         Boolean            @default(true)
+  isNew            Boolean            @default(false)
+  includedItems    String[]           @default([])
+  usageRules       String?
+  seoTitle         String?
+  seoDescription   String?
+  viewCount        Int                @default(0)
+  whatsappClicks   Int                @default(0)
+  categoryId       String
+  brandId          String
+  category         Category           @relation(fields: [categoryId], references: [id])
+  brand            Brand              @relation(fields: [brandId], references: [id])
+  images           ProductImage[]
+  specifications   Specification[]
+  accessories      ProductAccessory[] @relation("ProductToAccessory")
+  accessoryOf      ProductAccessory[] @relation("AccessoryToProduct")
+  relatedFrom      RelatedProduct[]   @relation("ProductRelated")
+  relatedTo        RelatedProduct[]   @relation("RelatedToProduct")
+  bookingDates     BookingDate[]
+  views            ProductView[]
+  clicks           WhatsAppClick[]
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  deletedAt        DateTime?
+  archivedAt       DateTime?
+
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([isActive, isFeatured])
+  @@index([status])
+  @@index([slug])
+}
+
+model ProductImage {
+  id        String   @id @default(cuid())
+  url       String
+  alt       String?
+  sortOrder Int      @default(0)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+}
+
+model Specification {
+  id        String  @id @default(cuid())
+  label     String
+  value     String
+  sortOrder Int     @default(0)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model ProductAccessory {
+  id          String  @id @default(cuid())
+  productId   String
+  accessoryId String
+  product     Product @relation("ProductToAccessory", fields: [productId], references: [id], onDelete: Cascade)
+  accessory   Product @relation("AccessoryToProduct", fields: [accessoryId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, accessoryId])
+}
+
+model RelatedProduct {
+  id               String  @id @default(cuid())
+  productId        String
+  relatedProductId String
+  product          Product @relation("ProductRelated", fields: [productId], references: [id], onDelete: Cascade)
+  relatedProduct   Product @relation("RelatedToProduct", fields: [relatedProductId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, relatedProductId])
+}
+
+model BookingDate {
+  id        String   @id @default(cuid())
+  productId String
+  startDate DateTime @db.Date
+  endDate   DateTime @db.Date
+  note      String?
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId])
+  @@index([startDate, endDate])
+}
+
+model ContactMessage {
+  id        String        @id @default(cuid())
+  name      String
+  email     String
+  phone     String?
+  subject   String?
+  message   String
+  status    MessageStatus @default(NEW)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  deletedAt DateTime?
+
+  @@index([status])
+}
+
+model SiteSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model NavigationItem {
+  id        String   @id @default(cuid())
+  label     String
+  href      String
+  sortOrder Int      @default(0)
+  isVisible Boolean  @default(true)
+  categoryId String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SocialLink {
+  id        String   @id @default(cuid())
+  platform  String
+  url       String
+  isVisible Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  String?
+  details   Json?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entity])
+}
+
+model ProductView {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  ipHash    String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+}
+
+model WhatsAppClick {
+  id        String    @id @default(cuid())
+  productId String?
+  product   Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  priceType PriceType?
+  source    String?
+  createdAt DateTime  @default(now())
+
+  @@index([productId])
+  @@index([createdAt])
+}

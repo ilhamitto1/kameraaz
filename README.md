@@ -1,36 +1,103 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Kameraz.com
 
-## Getting Started
+Premium foto/video avadanlıq kirayə kataloqu — Next.js 15, TypeScript, Prisma, PostgreSQL.
 
-First, run the development server:
+## Tələblər
+
+- Node.js 20+
+- Docker (PostgreSQL üçün) **və ya** öz PostgreSQL-iniz
+
+## Quraşdırma
 
 ```bash
+# 1. Asılılıqlar
+npm install
+
+# 2. Environment
+cp .env.example .env
+# DATABASE_URL və AUTH_SECRET-i düzəldin
+
+# 3. PostgreSQL (Docker)
+docker compose up -d
+# Default: localhost:5433 (lokal Postgres 5432 ilə toqquşmasın deyə)
+
+# 4. Migration + seed
+npx prisma migrate deploy
+npm run db:seed
+
+# 5. Development
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Sayt: http://localhost:3000  
+Admin: http://localhost:3000/admin/login
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Default admin
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Sahə | Dəyər |
+|------|--------|
+| Email | `admin@kameraz.com` |
+| Şifrə | `KamerazAdmin2026!` |
 
-## Learn More
+`.env` içində `ADMIN_EMAIL` / `ADMIN_PASSWORD` ilə dəyişə bilərsiniz (seed yenidən işləyəndə).
 
-To learn more about Next.js, take a look at the following resources:
+## Əsas əmrlər
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+npm run dev          # Development (Turbopack)
+npm run build        # Production build
+npm start            # Production server
+npm run db:migrate   # prisma migrate dev
+npm run db:seed      # Seed data
+npm run db:studio    # Prisma Studio
+npm run db:reset     # DB reset + migrate + seed
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Environment (`.env.example`)
 
-## Deploy on Vercel
+- `DATABASE_URL` — PostgreSQL connection string
+- `AUTH_SECRET` — NextAuth secret (uzun random string)
+- `NEXTAUTH_URL` / `AUTH_URL` — məs. `http://localhost:3000`
+- `NEXT_PUBLIC_SITE_URL` — canonical URL
+- `UPLOAD_PROVIDER` — `local` və ya Cloudinary (`CLOUDINARY_*`)
+- `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_NAME` — seed admin
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Deployment
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. PostgreSQL yaradın (Neon, Supabase, Railway, Digan Docker).
+2. Env dəyişənlərini production-da təyin edin (`AUTH_SECRET` mütləq dəyişsin).
+3. `npx prisma migrate deploy && npm run db:seed`
+4. `npm run build && npm start` və ya Vercel/Docker.
+
+Vercel üçün: build command `prisma generate && next build`, postinstall artıq `prisma generate` edir.
+
+## Fayl strukturu (əsas)
+
+```
+prisma/schema.prisma      # DB modelləri
+prisma/seed.ts            # Nümunə məlumatlar
+src/actions/              # Server Actions (CRUD, analytics)
+src/app/(site)/           # Public səhifələr
+src/app/admin/            # Admin panel
+src/components/           # UI, layout, products, admin
+src/lib/                  # auth, prisma, whatsapp, i18n, validations
+```
+
+## Əsas komponentlər
+
+| Komponent | Rol |
+|-----------|-----|
+| `Navbar` | Floating cinematic control panel + aperture mega menu |
+| `CustomCursor` | Desktop fokus/lens cursor |
+| `ProductCard` | Asimetrik kart, tilt, REC, timecode qiymət |
+| `ProductDetailClient` | Qalereya, tarix, WhatsApp mesaj |
+| `ProductForm` | Admin məhsul CRUD + upload |
+| `SettingsForm` | WhatsApp, hero, SEO parametrləri |
+
+## WhatsApp
+
+Admin → Parametrlər → nömrə və şablon. Placeholder-lər: `{name}`, `{price}`, `{priceType}`, `{url}`, `{dates}`, `{note}`.
+
+## Qeyd
+
+Docker Postgres host portu **5433**-dür (`docker-compose.yml`). Lokal Postgres 5432-də işləyirsə conflict olmaz.
