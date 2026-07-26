@@ -6,7 +6,7 @@ import { logActivity } from "@/lib/activity-log";
 import { productSchema } from "@/lib/validations/product";
 import { slugify } from "@/lib/utils";
 import { AvailabilityStatus, Prisma } from "@prisma/client";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 async function requireAdmin() {
   const session = await auth();
@@ -242,6 +242,8 @@ export async function createProduct(raw: unknown) {
   revalidatePath("/");
   revalidatePath("/avadanliqlar");
   revalidatePath("/admin/mehsullar");
+  revalidateTag("products");
+  revalidateTag("categories");
   return { success: true as const, data: product };
 }
 
@@ -355,6 +357,8 @@ export async function updateProduct(id: string, raw: unknown) {
   revalidatePath("/avadanliqlar");
   revalidatePath(`/avadanliqlar/${existing.slug}`);
   revalidatePath("/admin/mehsullar");
+  revalidateTag("products");
+  revalidateTag(`product-${existing.slug}`);
   return { success: true as const };
 }
 
@@ -373,6 +377,7 @@ export async function deleteProduct(id: string) {
   });
   revalidatePath("/admin/mehsullar");
   revalidatePath("/avadanliqlar");
+  revalidateTag("products");
   return { success: true as const };
 }
 

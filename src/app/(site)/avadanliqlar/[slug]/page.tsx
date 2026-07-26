@@ -1,64 +1,97 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { getProductBySlug, incrementView, getProducts } from "@/actions/products";
+import { incrementView } from "@/actions/products";
 import { getPublicSettings } from "@/actions/admin";
 import { ProductDetailClient } from "@/components/products/ProductDetailClient";
 import { ProductCard } from "@/components/products/ProductCard";
-import { absoluteUrl, formatPrice } from "@/lib/utils";
+import {
+  getAllProductSlugs,
+  getCachedProductBySlug,
+  getCachedRelatedByCategory,
+} from "@/lib/public-data";
+import { absoluteUrl, formatPrice, getSiteUrl } from "@/lib/utils";
 import { az } from "@/lib/i18n/az";
+
+export const revalidate = 120;
 
 type Props = { params: Promise<{ slug: string }> };
 
+export async function generateStaticParams() {
+  try {
+    const products = await getAllProductSlugs();
+    return products.map((p) => ({ slug: p.slug }));
+  } catch {
+    return [];
+  }
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  const product = (await getProductBySlug(slug)) as Record<string, unknown> | null;
+  const product = await getCachedProductBySlug(slug);
   if (!product) return { title: "Məhsul tapılmadı" };
-  const title = (product.seoTitle as string) || `${product.name as string} kirayə`;
+
+  const name = String(product.name);
+  const title = (product.seoTitle as string) || `${name} kirayə Bakı`;
   const description =
-    (product.seoDescription as string) || (product.shortDesc as string) || undefined;
+    (product.seoDescription as string) ||
+    (product.shortDesc as string) ||
+    `${name} — günlük kirayə qiyməti ilə peşəkar avadanlıq.`;
+  const url = absoluteUrl(`/avadanliqlar/${slug}`);
+  const image = (product.mainImage as string) || undefined;
+
   return {
     title,
     description,
+    alternates: { canonical: url },
     openGraph: {
       title,
       description,
-      url: absoluteUrl(`/avadanliqlar/${slug}`),
-      images: product.mainImage ? [{ url: product.mainImage as string }] : undefined,
+      url,
+      type: "website",
+      images: image ? [{ url: image }] : undefined,
+      siteName: "Kameraz.com",
+      locale: "az_AZ",
     },
-    alternates: { canonical: absoluteUrl(`/avadanliqlar/${slug}`) },
+    twitter: { card: "summary_large_image", title, description, images: image ? [image] : undefined },
+    robots: { index: true, follow: true },
   };
 }
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params;
   const [product, settings] = await Promise.all([
-    getProductBySlug(slug) as Promise<Record<string, unknown> | null>,
+    getCachedProductBySlug(slug),
     getPublicSettings(),
   ]);
   if (!product) notFound();
 
-  // Don't block the page if analytics write fails (pooler / cold start)
   void incrementView(product.id as string);
 
-  const related = await getProducts({
-    categorySlug: (product.category as { slug: string })?.slug,
-    pageSize: 4,
-  });
+  const categorySlug = (product.category as { slug?: string } | null)?.slug;
+  const related = categorySlug
+    ? await getCachedRelatedByCategory(categorySlug, product.id as string, 4)
+    : [];
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
     description: product.shortDesc,
-    brand: (product.brand as { name: string })?.name,
+    image: product.mainImage || undefined,
+    brand: {
+      "@type": "Brand",
+      name: (product.brand as { name?: string })?.name,
+    },
     offers: {
       "@type": "Offer",
+      url: absoluteUrl(`/avadanliqlar/${slug}`),
       priceCurrency: "AZN",
       price: product.dailyPrice,
       availability:
         product.status === "AVAILABLE"
           ? "https://schema.org/InStock"
           : "https://schema.org/OutOfStock",
+      seller: { "@type": "Organization", name: "Kameraz.com", url: getSiteUrl() },
     },
   };
 
@@ -77,21 +110,18 @@ export default async function ProductPage({ params }: Props) {
         statusLabel={az.status[product.status as keyof typeof az.status] || String(product.status)}
       />
 
-      <section className="mt-24">
-        <h2 className="display-font text-3xl">Əlaqəli məhsullar</h2>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {related.items
-            .filter((p) => p.id !== product.id)
-            .slice(0, 4)
-            .map((p) => (
-              <ProductCard key={p.id as string} product={p as never} />
+      {related.length > 0 && (
+        <section className="mt-24">
+          <h2 className="display-font text-3xl">Əlaqəli məhsullar</h2>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {related.map((p) => (
+              <ProductCard key={p.id} product={p} />
             ))}
-        </div>
-      </section>
+          </div>
+        </section>
+      )}
 
-      <p className="sr-only">
-        Qiymət: {formatPrice(product.dailyPrice as number)}
-      </p>
+      <p className="sr-only">Qiymət: {formatPrice(product.dailyPrice as number)}</p>
     </div>
   );
 }

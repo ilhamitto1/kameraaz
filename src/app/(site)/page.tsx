@@ -1,18 +1,35 @@
-import { getFeaturedProducts } from "@/actions/products";
-import { getCategories } from "@/actions/catalog";
+import { getCachedFeaturedProducts, getCachedPublicCategories } from "@/lib/public-data";
 import { getPublicSettings } from "@/actions/admin";
 import { Hero } from "@/components/home/Hero";
 import { FeaturedSection } from "@/components/home/FeaturedSection";
 import { CategoryOrbit } from "@/components/home/CategoryOrbit";
 import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { Button } from "@/components/ui/Button";
+import type { Metadata } from "next";
+import { absoluteUrl, getSiteUrl } from "@/lib/utils";
 
-export const revalidate = 60;
+export const revalidate = 120;
+
+export const metadata: Metadata = {
+  title: "Foto və Video Avadanlıq Kirayəsi Bakı",
+  description:
+    "Kameraz.com — Bakıda peşəkar kamera, linza, işıq və stabilizator kirayəsi. WhatsApp ilə sürətli rezervasiya.",
+  alternates: { canonical: absoluteUrl("/") },
+  openGraph: {
+    title: "Kameraz.com — Avadanlıq Kirayəsi",
+    description: "Peşəkar foto və video texnikası kirayəsi.",
+    url: absoluteUrl("/"),
+    siteName: "Kameraz.com",
+    locale: "az_AZ",
+    type: "website",
+  },
+  robots: { index: true, follow: true },
+};
 
 export default async function HomePage() {
   const [featured, categories, settings] = await Promise.all([
-    getFeaturedProducts(6),
-    getCategories(),
+    getCachedFeaturedProducts(6),
+    getCachedPublicCategories(),
     getPublicSettings(),
   ]);
 
@@ -21,8 +38,27 @@ export default async function HomePage() {
     "Salam. Çəkiliş tariximi planlaşdırmışam. Avadanlıq rezervasiyası üçün yazıram.",
   );
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "Kameraz.com",
+    url: getSiteUrl(),
+    description: settings.seoDescription || settings.footerText,
+    contactPoint: {
+      "@type": "ContactPoint",
+      telephone: settings.phone,
+      contactType: "customer service",
+      areaServed: "AZ",
+      availableLanguage: ["az"],
+    },
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Hero slogan={settings.heroSlogan} whatsappNumber={settings.whatsappNumber} />
 
       <FeaturedSection products={featured as never} />
@@ -54,7 +90,7 @@ export default async function HomePage() {
 
       <section className="mx-auto max-w-7xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] sm:px-5 md:px-8 lg:pb-32">
         <div className="relative overflow-hidden border border-[var(--border)] bg-[var(--bg-elevated)] px-8 py-16 md:px-16">
-          <div className="absolute -right-10 -top-10 h-48 w-48 animate-pulse rounded-full border border-[var(--accent)]/20" />
+          <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full border border-[var(--accent)]/20" />
           <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-[radial-gradient(circle,rgba(200,255,0,0.12),transparent_70%)]" />
           <h2 className="display-font relative text-3xl md:text-5xl">Çəkiliş tarixini planlaşdırmısan?</h2>
           <p className="relative mt-4 max-w-lg text-[var(--fg-muted)]">
