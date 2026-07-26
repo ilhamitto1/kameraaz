@@ -28,13 +28,19 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#050505] px-4">
+    <div
+      className="flex min-h-dvh items-center justify-center bg-[#050505] px-4 py-8"
+      style={{
+        paddingTop: "max(2rem, env(safe-area-inset-top))",
+        paddingBottom: "max(2rem, env(safe-area-inset-bottom))",
+      }}
+    >
       <form
         onSubmit={onSubmit}
-        className="w-full max-w-md border border-[var(--border)] bg-[var(--bg-elevated)] p-8"
+        className="w-full max-w-md rounded-3xl border border-white/10 bg-[var(--bg-elevated)] p-6 sm:p-8"
       >
-        <p className="mono text-xs text-[var(--accent)]">ADMIN // ACCESS</p>
-        <h1 className="display-font mt-2 text-3xl">Kameraz Panel</h1>
+        <p className="mono text-xs text-[var(--accent)]">ADMIN</p>
+        <h1 className="display-font mt-2 text-2xl sm:text-3xl">Kameraz Panel</h1>
         <div className="mt-8 space-y-4">
           <div>
             <Label htmlFor="email">Email</Label>
@@ -45,6 +51,7 @@ export default function AdminLoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="username"
+              className="h-12 rounded-xl text-base"
             />
           </div>
           <div>
@@ -56,10 +63,11 @@ export default function AdminLoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="current-password"
+              className="h-12 rounded-xl text-base"
             />
           </div>
           {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
-          <Button type="submit" className="w-full" disabled={loading}>
+          <Button type="submit" className="h-12 w-full rounded-xl text-base" disabled={loading}>
             {loading ? "Yoxlanılır..." : "Daxil ol"}
           </Button>
         </div>

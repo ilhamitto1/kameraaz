@@ -1,64 +1,55 @@
-import Link from "next/link";
 import { getProducts } from "@/actions/products";
-import { formatPrice } from "@/lib/utils";
-import { ProductAdminActions } from "@/components/admin/ProductAdminActions";
+import { getCategories } from "@/actions/catalog";
+import { ProductsAdmin } from "@/components/admin/ProductsAdmin";
 
-export default async function AdminProductsPage() {
-  const { items } = await getProducts({ admin: true, pageSize: 100, sort: "newest" });
+export default async function AdminProductsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>;
+}) {
+  const sp = await searchParams;
+  const [{ items }, categories] = await Promise.all([
+    getProducts({ admin: true, pageSize: 200, sort: "newest" }),
+    getCategories({ admin: true }),
+  ]);
 
+  const products = items.map((p) => {
+    const category = p.category as { id: string; name: string; slug: string } | null;
+    const brand = p.brand as { name: string } | null;
+    return {
+      id: String(p.id),
+      name: String(p.name),
+      dailyPrice: (p.dailyPrice as number | null) ?? null,
+      weeklyPrice: (p.weeklyPrice as number | null) ?? null,
+      monthlyPrice: (p.monthlyPrice as number | null) ?? null,
+      deposit: (p.deposit as number | null) ?? null,
+      status: String(p.status),
+      isActive: !!p.isActive,
+      isFeatured: !!p.isFeatured,
+      mainImage: (p.mainImage as string | null) ?? null,
+      categoryId: category?.id || "",
+      categoryName: category?.name || "—",
+      categorySlug: category?.slug || "",
+      brandName: brand?.name || "—",
+    };
+  });
+
+  const tabs = categories.map((c) => ({
+    id: c.id,
+    name: c.name,
+    slug: c.slug,
+    icon: c.icon,
+    count: products.filter((p) => p.categoryId === c.id).length,
+  }));
+
+  // Prefer URL category for initial tab via key remount trick on client — pass as default through ProductsAdmin
+  // We'll encode preferred category by sorting tabs / letting client read — add defaultActive prop
   return (
-    <div>
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="display-font text-3xl">Məhsullar</h1>
-        <Link
-          href="/admin/mehsullar/yeni"
-          className="bg-[var(--accent)] px-4 py-2 text-sm font-semibold text-[#050505]"
-        >
-          Yeni məhsul
-        </Link>
-      </div>
-      <div className="mt-8 overflow-x-auto border border-[var(--border)]">
-        <table className="w-full min-w-[800px] text-left text-sm">
-          <thead className="bg-[var(--bg-elevated)] text-xs uppercase tracking-wider text-[var(--fg-muted)]">
-            <tr>
-              <th className="p-3">Ad</th>
-              <th className="p-3">Qiymət</th>
-              <th className="p-3">Status</th>
-              <th className="p-3">Baxış</th>
-              <th className="p-3">WA</th>
-              <th className="p-3">Əməliyyat</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((p) => (
-              <tr key={p.id as string} className="border-t border-[var(--border)]">
-                <td className="p-3">
-                  <Link href={`/admin/mehsullar/${p.id}`} className="hover:text-[var(--accent)]">
-                    {p.name as string}
-                  </Link>
-                  <div className="text-xs text-[var(--fg-muted)]">
-                    {(p.brand as { name: string })?.name} ·{" "}
-                    {(p.category as { name: string })?.name}
-                    {p.isFeatured ? " · ★" : ""}
-                    {!p.isActive ? " · deaktiv" : ""}
-                  </div>
-                </td>
-                <td className="p-3 mono">{formatPrice(p.dailyPrice as number)}</td>
-                <td className="p-3">{p.status as string}</td>
-                <td className="p-3">{p.viewCount as number}</td>
-                <td className="p-3">{p.whatsappClicks as number}</td>
-                <td className="p-3">
-                  <ProductAdminActions
-                    id={p.id as string}
-                    isFeatured={!!p.isFeatured}
-                    isActive={!!p.isActive}
-                  />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+    <ProductsAdmin
+      key={sp.category || "all"}
+      products={products}
+      categories={tabs}
+      initialCategoryId={sp.category}
+    />
   );
 }

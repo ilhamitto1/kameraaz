@@ -29,21 +29,24 @@ export function BookingsAdmin({
   const [note, setNote] = useState("");
 
   return (
-    <div className="grid gap-8 lg:grid-cols-2">
-      <ul className="space-y-3">
+    <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
+      <ul className="order-2 space-y-3 lg:order-1">
         {bookings.map((b) => (
-          <li key={b.id} className="border border-[var(--border)] p-4 flex justify-between gap-3">
-            <div>
+          <li
+            key={b.id}
+            className="flex flex-col gap-3 rounded-2xl border border-white/10 p-4 sm:flex-row sm:items-start sm:justify-between"
+          >
+            <div className="min-w-0">
               <p className="font-medium">{b.product.name}</p>
               <p className="text-xs text-[var(--fg-muted)]">
                 {new Date(b.startDate).toLocaleDateString("az-AZ")} –{" "}
                 {new Date(b.endDate).toLocaleDateString("az-AZ")}
               </p>
-              {b.note && <p className="text-sm mt-1">{b.note}</p>}
+              {b.note && <p className="mt-1 text-sm">{b.note}</p>}
             </div>
             <button
               type="button"
-              className="text-xs text-[var(--danger)] underline"
+              className="min-h-9 self-start rounded-lg border border-[var(--danger)]/30 px-3 text-xs text-[var(--danger)] touch-manipulation"
               onClick={() =>
                 start(async () => {
                   await deleteBooking(b.id);
@@ -56,12 +59,12 @@ export function BookingsAdmin({
           </li>
         ))}
       </ul>
-      <div className="border border-[var(--border)] p-5 space-y-4">
+      <div className="order-1 space-y-4 rounded-2xl border border-white/10 bg-[var(--bg-elevated)] p-4 sm:p-5 lg:order-2">
         <h2 className="display-font text-xl">Yeni rezervasiya</h2>
         <div>
           <Label>Məhsul</Label>
           <select
-            className="h-11 w-full border border-[var(--border)] bg-[var(--bg-panel)] px-3"
+            className="h-11 w-full rounded-xl border border-white/10 bg-[var(--bg-panel)] px-3"
             value={productId}
             onChange={(e) => setProductId(e.target.value)}
           >
@@ -72,22 +75,33 @@ export function BookingsAdmin({
             ))}
           </select>
         </div>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div>
             <Label>Başlanğıc</Label>
-            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="min-h-11 rounded-xl"
+            />
           </div>
           <div>
-            <Label>Son</Label>
-            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            <Label>Bitmə</Label>
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="min-h-11 rounded-xl"
+            />
           </div>
         </div>
         <div>
           <Label>Qeyd</Label>
-          <Input value={note} onChange={(e) => setNote(e.target.value)} />
+          <Input value={note} onChange={(e) => setNote(e.target.value)} className="rounded-xl" />
         </div>
         <Button
           type="button"
+          className="min-h-11 w-full rounded-xl sm:w-auto"
           disabled={pending || !productId || !startDate || !endDate}
           onClick={() =>
             start(async () => {

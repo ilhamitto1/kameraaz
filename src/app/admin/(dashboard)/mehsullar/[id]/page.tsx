@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getProductById } from "@/actions/products";
 import { getCategories, getBrands } from "@/actions/catalog";
@@ -16,7 +17,13 @@ export default async function EditProductPage({ params }: Props) {
 
   return (
     <div>
-      <h1 className="display-font text-3xl mb-8">Redaktə: {product.name as string}</h1>
+      <div className="mb-8">
+        <Link href="/admin/mehsullar" className="text-xs text-[var(--fg-muted)] hover:text-[var(--fg)]">
+          ← Kirayə malları
+        </Link>
+        <h1 className="display-font mt-3 text-3xl md:text-4xl">Redaktə</h1>
+        <p className="mt-2 text-sm text-[var(--fg-muted)]">{product.name as string}</p>
+      </div>
       <ProductForm
         categories={categories.map((c) => ({ id: c.id, name: c.name }))}
         brands={brands.map((b) => ({ id: b.id, name: b.name }))}

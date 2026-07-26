@@ -152,13 +152,20 @@ export async function createProduct(raw: unknown) {
   const user = await requireAdmin();
   const parsed = productSchema.safeParse(raw);
   if (!parsed.success) {
-    return { success: false as const, error: "Validation error", fieldErrors: parsed.error.flatten().fieldErrors };
+    const first = Object.values(parsed.error.flatten().fieldErrors)
+      .flat()
+      .filter(Boolean)[0];
+    return {
+      success: false as const,
+      error: first || "Məlumatlar düzgün deyil",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
   }
   const data = parsed.data;
   const slug = data.slug || slugify(data.name);
 
   const exists = await prisma.product.findUnique({ where: { slug } });
-  if (exists) return { success: false as const, error: "Bu slug artıq mövcuddur" };
+  if (exists) return { success: false as const, error: "Bu adda mal artıq var. Adı bir az dəyiş." };
 
   const product = await prisma.product.create({
     data: {
@@ -235,7 +242,14 @@ export async function updateProduct(id: string, raw: unknown) {
   const user = await requireAdmin();
   const parsed = productSchema.partial().safeParse(raw);
   if (!parsed.success) {
-    return { success: false as const, error: "Validation error", fieldErrors: parsed.error.flatten().fieldErrors };
+    const first = Object.values(parsed.error.flatten().fieldErrors)
+      .flat()
+      .filter(Boolean)[0];
+    return {
+      success: false as const,
+      error: first || "Məlumatlar düzgün deyil",
+      fieldErrors: parsed.error.flatten().fieldErrors,
+    };
   }
   const data = parsed.data;
 

@@ -21,13 +21,13 @@ export function MessagesAdmin({ initial }: { initial: Msg[] }) {
   const [pending, start] = useTransition();
 
   return (
-    <div className={`space-y-4 ${pending ? "opacity-70" : ""}`}>
+    <div className={`space-y-3 ${pending ? "opacity-70" : ""}`}>
       {initial.map((m) => (
-        <article key={m.id} className="border border-[var(--border)] bg-[var(--bg-elevated)] p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
+        <article key={m.id} className="rounded-2xl border border-white/10 bg-[var(--bg-elevated)] p-4 sm:rounded-3xl sm:p-5">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
               <p className="font-medium">{m.name}</p>
-              <p className="text-xs text-[var(--fg-muted)]">
+              <p className="break-all text-xs text-[var(--fg-muted)]">
                 {m.email} {m.phone ? `· ${m.phone}` : ""} · {m.status}
               </p>
               {m.subject && <p className="mt-1 text-sm">{m.subject}</p>}
@@ -35,7 +35,7 @@ export function MessagesAdmin({ initial }: { initial: Msg[] }) {
             <div className="flex flex-wrap gap-2 text-xs">
               <button
                 type="button"
-                className="underline"
+                className="min-h-9 rounded-lg border border-white/10 px-3 touch-manipulation"
                 onClick={() =>
                   start(async () => {
                     await updateMessageStatus(m.id, "READ");
@@ -47,7 +47,7 @@ export function MessagesAdmin({ initial }: { initial: Msg[] }) {
               </button>
               <button
                 type="button"
-                className="underline"
+                className="min-h-9 rounded-lg border border-white/10 px-3 touch-manipulation"
                 onClick={() =>
                   start(async () => {
                     await updateMessageStatus(m.id, "REPLIED");
@@ -59,7 +59,7 @@ export function MessagesAdmin({ initial }: { initial: Msg[] }) {
               </button>
               <button
                 type="button"
-                className="underline"
+                className="min-h-9 rounded-lg border border-white/10 px-3 touch-manipulation"
                 onClick={() =>
                   start(async () => {
                     await updateMessageStatus(m.id, "ARCHIVED");
@@ -71,7 +71,7 @@ export function MessagesAdmin({ initial }: { initial: Msg[] }) {
               </button>
               <button
                 type="button"
-                className="text-[var(--danger)] underline"
+                className="min-h-9 rounded-lg border border-[var(--danger)]/30 px-3 text-[var(--danger)] touch-manipulation"
                 onClick={() => {
                   if (confirm("Silinsin?"))
                     start(async () => {

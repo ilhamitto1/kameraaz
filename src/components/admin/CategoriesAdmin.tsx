@@ -58,20 +58,23 @@ export function CategoriesAdmin({ initial }: { initial: Cat[] }) {
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-2">
-      <div className="space-y-3">
+    <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
+      <div className="order-2 space-y-3 lg:order-1">
         {initial.map((c) => (
-          <div key={c.id} className="flex items-center justify-between border border-[var(--border)] p-4">
-            <div>
+          <div
+            key={c.id}
+            className="flex flex-col gap-3 rounded-2xl border border-white/10 p-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="min-w-0">
               <p className="font-medium">{c.name}</p>
-              <p className="text-xs text-[var(--fg-muted)]">
+              <p className="truncate text-xs text-[var(--fg-muted)]">
                 /{c.slug} · {c._count.products} məhsul · nav:{c.showInNav ? "bəli" : "xeyr"}
               </p>
             </div>
-            <div className="flex gap-2 text-xs">
+            <div className="flex flex-wrap gap-2 text-xs">
               <button
                 type="button"
-                className="underline"
+                className="min-h-9 rounded-lg border border-white/10 px-3 touch-manipulation"
                 onClick={() => {
                   setEditing(c);
                   setName(c.name);
@@ -85,7 +88,7 @@ export function CategoriesAdmin({ initial }: { initial: Cat[] }) {
               </button>
               <button
                 type="button"
-                className="text-[var(--danger)] underline"
+                className="min-h-9 rounded-lg border border-[var(--danger)]/30 px-3 text-[var(--danger)] touch-manipulation"
                 onClick={() => {
                   if (confirm("Silinsin?"))
                     start(async () => {
@@ -100,7 +103,7 @@ export function CategoriesAdmin({ initial }: { initial: Cat[] }) {
           </div>
         ))}
       </div>
-      <div className="border border-[var(--border)] bg-[var(--bg-elevated)] p-5 space-y-4">
+      <div className="order-1 space-y-4 rounded-2xl border border-white/10 bg-[var(--bg-elevated)] p-4 sm:p-5 lg:order-2">
         <h2 className="display-font text-xl">{editing ? "Redaktə" : "Yeni kateqoriya"}</h2>
         <div>
           <Label>Ad</Label>
