@@ -26,8 +26,34 @@ export function formatPrice(value: number | string | null | undefined, currency 
   return `${num.toLocaleString("az-AZ", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${currency}`;
 }
 
+export function getSiteUrl(): string {
+  const candidates = [
+    process.env.NEXT_PUBLIC_SITE_URL,
+    process.env.AUTH_URL,
+    process.env.NEXTAUTH_URL,
+    process.env.VERCEL_PROJECT_PRODUCTION_URL
+      ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+      : undefined,
+    process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined,
+  ];
+
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const value = raw.trim();
+    // Guard against accidental "NEXT_PUBLIC_SITE_URL" pasted as the value
+    if (!/^https?:\/\//i.test(value)) continue;
+    try {
+      return new URL(value).origin;
+    } catch {
+      continue;
+    }
+  }
+
+  return "http://localhost:3000";
+}
+
 export function absoluteUrl(path = ""): string {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const base = getSiteUrl();
   return `${base.replace(/\/$/, "")}${path.startsWith("/") ? path : `/${path}`}`;
 }
 

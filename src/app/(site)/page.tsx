@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { getFeaturedProducts } from "@/actions/products";
 import { getCategories } from "@/actions/catalog";
 import { getPublicSettings } from "@/actions/admin";
