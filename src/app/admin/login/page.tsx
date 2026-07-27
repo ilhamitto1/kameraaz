@@ -40,7 +40,7 @@ export default function AdminLoginPage() {
         className="w-full max-w-md rounded-3xl border border-white/10 bg-[var(--bg-elevated)] p-6 sm:p-8"
       >
         <p className="mono text-xs text-[var(--accent)]">ADMIN</p>
-        <h1 className="display-font mt-2 text-2xl sm:text-3xl">Kameraz Panel</h1>
+        <h1 className="display-font mt-2 text-2xl sm:text-3xl">kamera.agency Panel</h1>
         <p className="mt-2 text-sm text-[var(--fg-muted)]">
           Supabase Authentication ilə daxil ol
         </p>

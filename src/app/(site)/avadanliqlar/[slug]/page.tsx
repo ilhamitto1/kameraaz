@@ -10,6 +10,7 @@ import {
 import { getPublicSettings } from "@/actions/admin";
 import { absoluteUrl, formatPrice, getSiteUrl } from "@/lib/utils";
 import { az } from "@/lib/i18n/az";
+import { BRAND_MARK, BRAND_NAME, brandify } from "@/lib/brand";
 
 export const revalidate = 120;
 // On-demand ISR only — avoid prerendering every product during `next build`
@@ -27,13 +28,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!product) return { title: "Məhsul tapılmadı" };
 
   const name = String(product.name);
-  const title = (product.seoTitle as string) || `${name} kirayə Bakı`;
-  const description =
+  const title = brandify(
+    (product.seoTitle as string) || `${name} kirayə | ${BRAND_NAME}`,
+  );
+  const description = brandify(
     (product.seoDescription as string) ||
-    (product.shortDesc as string) ||
-    `${name} — günlük kirayə qiyməti ilə peşəkar avadanlıq.`;
+      (product.shortDesc as string) ||
+      `${name} — günlük kirayə qiyməti ilə peşəkar avadanlıq.`,
+  );
   const url = absoluteUrl(`/avadanliqlar/${slug}`);
-  const image = (product.mainImage as string) || undefined;
+  const image = (product.mainImage as string)?.trim() || BRAND_MARK;
 
   return {
     title,
@@ -44,11 +48,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url,
       type: "website",
-      images: image ? [{ url: image }] : undefined,
-      siteName: "Kameraz.com",
+      images: [{ url: image, alt: name }],
+      siteName: BRAND_NAME,
       locale: "az_AZ",
     },
-    twitter: { card: "summary_large_image", title, description, images: image ? [image] : undefined },
+    twitter: { card: "summary_large_image", title, description, images: [image] },
     robots: { index: true, follow: true },
   };
 }
@@ -91,7 +95,7 @@ export default async function ProductPage({ params }: Props) {
         product.status === "AVAILABLE"
           ? "https://schema.org/InStock"
           : "https://schema.org/OutOfStock",
-      seller: { "@type": "Organization", name: "Kameraz.com", url: getSiteUrl() },
+      seller: { "@type": "Organization", name: BRAND_NAME, url: getSiteUrl() },
     },
   };
 

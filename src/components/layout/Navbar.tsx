@@ -166,7 +166,7 @@ export function Navbar({
             <Link
               href="/"
               className="relative z-10 flex h-9 w-9 shrink-0 items-center justify-center"
-              aria-label="Kameraa AZ"
+              aria-label="kamera.agency"
             >
               <Image
                 src="/brand/nav-k.png"

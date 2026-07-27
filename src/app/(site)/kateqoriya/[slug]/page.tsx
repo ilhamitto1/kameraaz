@@ -5,6 +5,7 @@ import {
   getCachedCategoryListing,
 } from "@/lib/public-data";
 import { absoluteUrl, getSiteUrl } from "@/lib/utils";
+import { BRAND_MARK, BRAND_NAME } from "@/lib/brand";
 
 export const revalidate = 120;
 // On-demand ISR only — avoid build-time DB stampede across all category slugs
@@ -24,7 +25,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const title = `${category.name} kirayə Bakı`;
   const description =
     category.description ||
-    `${category.name} — peşəkar avadanlıq kirayəsi. Kameraz.com / kamera.agency`;
+    `${category.name} — peşəkar avadanlıq kirayəsi. ${BRAND_NAME}`;
   const url = absoluteUrl(`/kateqoriya/${slug}`);
 
   return {
@@ -36,10 +37,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url,
       type: "website",
-      siteName: "Kameraz.com",
+      siteName: BRAND_NAME,
       locale: "az_AZ",
+      images: [{ url: BRAND_MARK, width: 512, height: 512, alt: BRAND_NAME }],
     },
-    twitter: { card: "summary_large_image", title, description },
+    twitter: { card: "summary_large_image", title, description, images: [BRAND_MARK] },
     robots: { index: true, follow: true },
   };
 }
@@ -56,7 +58,7 @@ export default async function CategoryPage({ params }: Props) {
     name: category.name,
     description: category.description,
     url: absoluteUrl(`/kateqoriya/${slug}`),
-    isPartOf: { "@type": "WebSite", name: "Kameraz.com", url: getSiteUrl() },
+    isPartOf: { "@type": "WebSite", name: BRAND_NAME, url: getSiteUrl() },
     mainEntity: {
       "@type": "ItemList",
       numberOfItems: products.length,

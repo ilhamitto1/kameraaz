@@ -9,7 +9,7 @@ export default function AboutPage() {
       <h1 className="display-font mt-2 text-5xl">Haqqımızda</h1>
       <div className="prose prose-invert mt-8 space-y-4 text-[var(--fg-muted)]">
         <p>
-          Kameraz.com Bakıda peşəkar foto və video çəkiliş avadanlıqlarının kirayəsi üçün
+          kamera.agency Bakıda peşəkar foto və video çəkiliş avadanlıqlarının kirayəsi üçün
           yaradılmış premium kataloq platformasıdır.
         </p>
         <p>

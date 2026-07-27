@@ -7,21 +7,23 @@ import { getWhatsAppUrl } from "@/lib/whatsapp";
 import { Button } from "@/components/ui/Button";
 import type { Metadata } from "next";
 import { absoluteUrl, getSiteUrl } from "@/lib/utils";
+import { BRAND_MARK, BRAND_NAME } from "@/lib/brand";
 
 export const revalidate = 120;
 
 export const metadata: Metadata = {
   title: "Foto və Video Avadanlıq Kirayəsi Bakı",
   description:
-    "Kameraz.com — Bakıda peşəkar kamera, linza, işıq və stabilizator kirayəsi. WhatsApp ilə sürətli rezervasiya.",
+    `${BRAND_NAME} — Bakıda peşəkar kamera, linza, işıq və stabilizator kirayəsi. WhatsApp ilə sürətli rezervasiya.`,
   alternates: { canonical: absoluteUrl("/") },
   openGraph: {
-    title: "Kameraz.com — Avadanlıq Kirayəsi",
+    title: `${BRAND_NAME} — Avadanlıq Kirayəsi`,
     description: "Peşəkar foto və video texnikası kirayəsi.",
     url: absoluteUrl("/"),
-    siteName: "Kameraz.com",
+    siteName: BRAND_NAME,
     locale: "az_AZ",
     type: "website",
+    images: [{ url: BRAND_MARK, width: 512, height: 512, alt: BRAND_NAME }],
   },
   robots: { index: true, follow: true },
 };

@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 
 export const metadata: Metadata = {
   title: "Əlaqə",
-  description: "Kameraz.com ilə əlaqə — WhatsApp, telefon, email",
+  description: "kamera.agency ilə əlaqə — WhatsApp, telefon, email",
 };
 
 export default async function ContactPage() {

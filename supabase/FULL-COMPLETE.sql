@@ -360,6 +360,13 @@ UPDATE "SiteSetting" SET "value" = to_jsonb('kamera.agency — peşəkar çəkil
 UPDATE "SiteSetting" SET "value" = to_jsonb('info@kamera.agency'::text), "updatedAt" = NOW() WHERE "key" = 'email';
 UPDATE "SiteSetting" SET "value" = to_jsonb('kamera.agency — Foto və Video Avadanlıq Kirayəsi Bakı'::text), "updatedAt" = NOW() WHERE "key" = 'seoTitle';
 
+-- Köhnə məhsul SEO (Kameraz.com → kamera.agency) — WhatsApp link preview
+UPDATE "Product"
+SET
+  "seoTitle" = REPLACE(REPLACE("seoTitle", 'Kameraz.com', 'kamera.agency'), 'Kameraz', 'kamera.agency'),
+  "updatedAt" = NOW()
+WHERE "seoTitle" ILIKE '%kameraz%';
+
 INSERT INTO "NavigationItem" ("id","label","href","sortOrder","isVisible","createdAt","updatedAt") VALUES
 ('nav_all','Hamısı','/avadanliqlar',0,true,NOW(),NOW()),
 ('nav_foto','Fotoaparatlar','/kateqoriya/fotoaparatlar',1,true,NOW(),NOW()),

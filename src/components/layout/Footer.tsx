@@ -60,11 +60,12 @@ export function Footer({
         <div className="md:col-span-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={logo?.trim() || "/brand/hero-logo.png"}
-            alt="Kameraa AZ"
-            className="h-12 w-auto max-w-[200px] object-contain opacity-90"
+            src={logo?.trim() || "/brand/logo-mark.png"}
+            alt="kamera.agency"
+            className="h-12 w-auto max-w-[120px] object-contain opacity-90"
           />
-          <p className="mt-3 max-w-sm text-sm text-[var(--fg-muted)]">{slogan}</p>
+          <p className="display-font mt-3 text-lg tracking-[0.12em] text-white">kamera.agency</p>
+          <p className="mt-2 max-w-sm text-sm text-[var(--fg-muted)]">{slogan}</p>
           {socials.length > 0 && (
             <ul className="mt-4 flex flex-wrap gap-3 text-xs uppercase tracking-wider text-[var(--fg-muted)]">
               {socials.map((s) => (
@@ -131,7 +132,7 @@ export function Footer({
         </div>
       </div>
       <div className="border-t border-[var(--border)] px-5 py-5 text-center text-xs text-[var(--fg-muted)] md:px-8">
-        © {new Date().getFullYear()} Kameraz.com — {footerText}
+        © {new Date().getFullYear()} kamera.agency — {footerText}
       </div>
     </footer>
   );

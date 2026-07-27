@@ -29,7 +29,7 @@ export const az = {
     featuredSubtitle: "Ən çox kirayələnən avadanlıqlar",
     categoriesTitle: "Kateqoriyalar üzrə axtar",
     newArrivalsTitle: "Yeni gələnlər",
-    whyUsTitle: "Niyə Kameraz.com?",
+    whyUsTitle: "Niyə kamera.agency?",
     whyUsItems: {
       quality: "Yüksək keyfiyyətli, servisdən keçmiş avadanlıq",
       price: "Bazarın ən sərfəli qiymətləri",

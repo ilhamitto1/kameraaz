@@ -105,7 +105,7 @@ export function AdminSidebar({
           <Menu className="h-5 w-5" />
         </button>
         <Link href="/admin" className="display-font text-center text-xs tracking-[0.2em]">
-          KAMERAZ
+          KAMERA.AGENCY
           <span className="block text-[9px] tracking-[0.28em] text-[var(--fg-muted)]">İDARƏ</span>
         </Link>
         <Link
@@ -176,7 +176,7 @@ export function AdminSidebar({
       <aside className="hidden min-h-screen border-r border-white/10 bg-[var(--bg-elevated)] lg:flex lg:flex-col">
         <div className="flex items-center justify-between gap-3 px-5 py-5">
           <Link href="/admin" className="display-font text-sm tracking-[0.18em]">
-            KAMERAZ
+            KAMERA.AGENCY
             <span className="mt-0.5 block text-[10px] tracking-[0.28em] text-[var(--fg-muted)]">
               İDARƏ
             </span>

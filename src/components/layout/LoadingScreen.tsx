@@ -44,7 +44,7 @@ export function LoadingScreen() {
             <div className="absolute inset-0 scale-75 rounded-full bg-[radial-gradient(circle,rgba(200,255,0,0.1),transparent_70%)] blur-xl" />
             <Image
               src="/brand/nav-k.png"
-              alt="Kameraa AZ"
+              alt="kamera.agency"
               width={128}
               height={128}
               priority

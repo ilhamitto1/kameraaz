@@ -3,6 +3,7 @@ import { Syne, DM_Sans, DM_Mono } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/AppProviders";
 import { getSiteUrl } from "@/lib/utils";
+import { BRAND_MARK, BRAND_NAME } from "@/lib/brand";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -26,15 +27,24 @@ const dmMono = DM_Mono({
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
-    default: "Kameraz.com — Foto və Video Avadanlıq Kirayəsi",
-    template: "%s | Kameraz.com",
+    default: `${BRAND_NAME} — Foto və Video Avadanlıq Kirayəsi`,
+    template: `%s | ${BRAND_NAME}`,
   },
   description:
     "Bakıda peşəkar kamera, linza, işıq və stabilizator kirayəsi. WhatsApp ilə sürətli rezervasiya.",
+  icons: {
+    icon: [{ url: BRAND_MARK, type: "image/png" }],
+    apple: [{ url: BRAND_MARK }],
+  },
   openGraph: {
     type: "website",
     locale: "az_AZ",
-    siteName: "Kameraz.com",
+    siteName: BRAND_NAME,
+    images: [{ url: BRAND_MARK, width: 512, height: 512, alt: BRAND_NAME }],
+  },
+  twitter: {
+    card: "summary",
+    images: [BRAND_MARK],
   },
 };
 

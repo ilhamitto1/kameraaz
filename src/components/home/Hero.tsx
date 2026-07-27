@@ -118,15 +118,20 @@ export function Hero({
               aria-hidden
               className="pointer-events-none absolute left-1/2 top-1/2 h-28 w-28 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[radial-gradient(circle,rgba(200,255,0,0.16),transparent_70%)] blur-2xl sm:h-36 sm:w-36 lg:left-8 lg:translate-x-0"
             />
-            <h1 className="sr-only">Kameraa AZ</h1>
-            <Image
-              src="/brand/hero-logo.png"
-              alt="Kameraa AZ"
-              width={520}
-              height={160}
-              priority
-              className="relative mx-auto h-auto w-[200px] select-none sm:w-[260px] md:w-[300px] lg:mx-0 lg:w-[380px]"
-            />
+            <h1 className="sr-only">kamera.agency</h1>
+            <div className="relative flex flex-col items-center gap-3 lg:items-start">
+              <Image
+                src="/brand/logo-mark.png"
+                alt=""
+                width={96}
+                height={96}
+                priority
+                className="h-16 w-16 select-none sm:h-20 sm:w-20 lg:h-24 lg:w-24"
+              />
+              <p className="display-font text-[1.65rem] font-semibold tracking-[0.14em] text-white sm:text-3xl md:text-4xl lg:text-[2.75rem]">
+                kamera.agency
+              </p>
+            </div>
           </motion.div>
 
           <motion.p

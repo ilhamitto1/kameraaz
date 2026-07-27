@@ -4,6 +4,7 @@ import { ProductCard } from "@/components/products/ProductCard";
 import { CatalogClient } from "@/components/products/CatalogClient";
 import type { Metadata } from "next";
 import { absoluteUrl, getSiteUrl } from "@/lib/utils";
+import { BRAND_MARK, BRAND_NAME } from "@/lib/brand";
 
 export const revalidate = 60;
 
@@ -13,12 +14,13 @@ export const metadata: Metadata = {
     "Kamera, linza, işıq və stabilizator kirayə kataloqu. Günlük qiymətlər, WhatsApp ilə sürətli rezervasiya — Bakı.",
   alternates: { canonical: absoluteUrl("/avadanliqlar") },
   openGraph: {
-    title: "Avadanlıqlar kirayə — Kameraz.com",
+    title: `Avadanlıqlar kirayə — ${BRAND_NAME}`,
     description: "Peşəkar foto və video texnikası kataloqu.",
     url: absoluteUrl("/avadanliqlar"),
-    siteName: "Kameraz.com",
+    siteName: BRAND_NAME,
     locale: "az_AZ",
     type: "website",
+    images: [{ url: BRAND_MARK, width: 512, height: 512, alt: BRAND_NAME }],
   },
   robots: { index: true, follow: true },
 };
@@ -92,7 +94,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
     "@type": "CollectionPage",
     name: "Avadanlıqlar",
     url: absoluteUrl("/avadanliqlar"),
-    isPartOf: { "@type": "WebSite", name: "Kameraz.com", url: getSiteUrl() },
+    isPartOf: { "@type": "WebSite", name: BRAND_NAME, url: getSiteUrl() },
   };
 
   return (
