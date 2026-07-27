@@ -1,4 +1,5 @@
 import { unstable_cache } from "next/cache";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/utils";
 
@@ -148,8 +149,8 @@ export function getCachedCatalogPage(input: {
 
   return unstable_cache(
     async () => {
-      const where = {
-        deletedAt: null as const,
+      const where: Prisma.ProductWhereInput = {
+        deletedAt: null,
         isActive: true,
         archivedAt: null,
         ...(input.categorySlug
@@ -158,7 +159,7 @@ export function getCachedCatalogPage(input: {
         ...(input.brandSlug ? { brand: { slug: input.brandSlug, deletedAt: null } } : {}),
       };
 
-      let orderBy: Record<string, "asc" | "desc"> = { sortOrder: "asc" };
+      let orderBy: Prisma.ProductOrderByWithRelationInput = { sortOrder: "asc" };
       if (sort === "newest") orderBy = { createdAt: "desc" };
       else if (sort === "price-asc") orderBy = { dailyPrice: "asc" };
       else if (sort === "price-desc") orderBy = { dailyPrice: "desc" };

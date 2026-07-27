@@ -23,8 +23,8 @@ export type CardProduct = {
   dailyPrice?: number | null;
   mainImage?: string | null;
   status: string;
-  brand?: { name: string };
-  category?: { name: string };
+  brand?: { name: string } | null;
+  category?: { name: string } | null;
   isFeatured?: boolean;
   isNew?: boolean;
 };
