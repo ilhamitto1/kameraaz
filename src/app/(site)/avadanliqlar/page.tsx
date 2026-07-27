@@ -4,7 +4,7 @@ import { ProductCard } from "@/components/products/ProductCard";
 import { CatalogClient } from "@/components/products/CatalogClient";
 import type { Metadata } from "next";
 import { absoluteUrl, getSiteUrl } from "@/lib/utils";
-import { BRAND_MARK, BRAND_NAME } from "@/lib/brand";
+import { BRAND_NAME, BRAND_OG_IMAGE } from "@/lib/brand";
 
 export const revalidate = 60;
 
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     siteName: BRAND_NAME,
     locale: "az_AZ",
     type: "website",
-    images: [{ url: BRAND_MARK, width: 512, height: 512, alt: BRAND_NAME }],
+    images: [{ url: absoluteUrl(BRAND_OG_IMAGE), width: 1200, height: 1200, alt: BRAND_NAME }],
   },
   robots: { index: true, follow: true },
 };

@@ -3,8 +3,10 @@ export const BRAND_NAME = "kamera.agency";
 export const BRAND_NAME_DISPLAY = "KAMERA.AGENCY";
 export const BRAND_EMAIL = "info@kamera.agency";
 
-/** Square mark — best for WhatsApp / OG / favicon */
+/** Square mark — favicon / UI */
 export const BRAND_MARK = "/brand/logo-mark.png";
+/** Hero-style logo for WhatsApp / Open Graph previews (absolute path under /public) */
+export const BRAND_OG_IMAGE = "/brand/og.png";
 /** Full wordmark fallback when no custom logo is set in admin */
 export const BRAND_LOGO = "/brand/logo-mark.png";
 

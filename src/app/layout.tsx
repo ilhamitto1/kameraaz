@@ -3,7 +3,8 @@ import { Syne, DM_Sans, DM_Mono } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/AppProviders";
 import { getSiteUrl } from "@/lib/utils";
-import { BRAND_MARK, BRAND_NAME } from "@/lib/brand";
+import { BRAND_MARK, BRAND_NAME, BRAND_OG_IMAGE } from "@/lib/brand";
+import { absoluteUrl, getSiteUrl } from "@/lib/utils";
 
 const syne = Syne({
   subsets: ["latin"],
@@ -24,6 +25,13 @@ const dmMono = DM_Mono({
   display: "swap",
 });
 
+const ogImage = {
+  url: absoluteUrl(BRAND_OG_IMAGE),
+  width: 1200,
+  height: 1200,
+  alt: BRAND_NAME,
+};
+
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
   title: {
@@ -40,11 +48,11 @@ export const metadata: Metadata = {
     type: "website",
     locale: "az_AZ",
     siteName: BRAND_NAME,
-    images: [{ url: BRAND_MARK, width: 512, height: 512, alt: BRAND_NAME }],
+    images: [ogImage],
   },
   twitter: {
-    card: "summary",
-    images: [BRAND_MARK],
+    card: "summary_large_image",
+    images: [absoluteUrl(BRAND_OG_IMAGE)],
   },
 };
 

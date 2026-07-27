@@ -10,7 +10,7 @@ import {
 import { getPublicSettings } from "@/actions/admin";
 import { absoluteUrl, formatPrice, getSiteUrl } from "@/lib/utils";
 import { az } from "@/lib/i18n/az";
-import { BRAND_MARK, BRAND_NAME, brandify } from "@/lib/brand";
+import { BRAND_NAME, BRAND_OG_IMAGE, brandify } from "@/lib/brand";
 
 export const revalidate = 120;
 // On-demand ISR only — avoid prerendering every product during `next build`
@@ -37,7 +37,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       `${name} — günlük kirayə qiyməti ilə peşəkar avadanlıq.`,
   );
   const url = absoluteUrl(`/avadanliqlar/${slug}`);
-  const image = (product.mainImage as string)?.trim() || BRAND_MARK;
+  // WhatsApp preview: always hero brand logo (not product photo)
+  const image = absoluteUrl(BRAND_OG_IMAGE);
 
   return {
     title,
@@ -48,11 +49,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       description,
       url,
       type: "website",
-      images: [{ url: image, alt: name }],
+      images: [{ url: image, width: 1200, height: 1200, alt: BRAND_NAME }],
       siteName: BRAND_NAME,
       locale: "az_AZ",
     },
-    twitter: { card: "summary_large_image", title, description, images: [image] },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [image],
+    },
     robots: { index: true, follow: true },
   };
 }
