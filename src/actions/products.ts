@@ -180,7 +180,9 @@ export async function getProducts(filters: ProductFilters) {
   if (error) throw error;
 
   const total = count || 0;
-  const items = (data || []).map((p) => normalizeListProduct(p as unknown as Record<string, unknown>));
+  const items = ((data || []) as unknown as Record<string, unknown>[]).map((p) =>
+    normalizeListProduct(p),
+  );
 
   return {
     items,
@@ -853,5 +855,5 @@ export async function getFeaturedProducts(limit = 6) {
     .limit(limit);
 
   if (error) throw error;
-  return (items || []).map((p) => normalizeListProduct(p as unknown as Record<string, unknown>));
+  return ((items || []) as unknown as Record<string, unknown>[]).map((p) => normalizeListProduct(p));
 }
