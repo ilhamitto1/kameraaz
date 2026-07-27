@@ -77,7 +77,7 @@ export function Navbar({
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const wa = getWhatsAppUrl(whatsappNumber, "Salam. Kameraz.com saytından yazıram.");
+  const wa = getWhatsAppUrl(whatsappNumber, "Salam. kamera.agency saytından yazıram.");
 
   // Top pill: catalog links only (Hamısı + kateqoriyalar). Əlaqə stays in menu/dock.
   const barItems = items.filter((item) => !item.href.startsWith("/elaqe"));

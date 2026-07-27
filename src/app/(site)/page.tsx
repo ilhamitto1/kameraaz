@@ -35,13 +35,13 @@ export default async function HomePage() {
 
   const wa = getWhatsAppUrl(
     settings.whatsappNumber,
-    "Salam. Çəkiliş tariximi planlaşdırmışam. Avadanlıq rezervasiyası üçün yazıram.",
+    "Salam. kamera.agency saytından yazıram. Avadanlıq rezervasiyası üçün əlaqə saxlayıram.",
   );
 
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: "Kameraz.com",
+    name: "kamera.agency",
     url: getSiteUrl(),
     description: settings.seoDescription || settings.footerText,
     contactPoint: {
@@ -72,7 +72,7 @@ export default async function HomePage() {
           {[
             { t: "Avadanlığı seç", d: "Kataloqdan peşəkar texnika seç." },
             { t: "Qiymətə bax", d: "Günlük, həftəlik və ya aylıq tarifə bax." },
-            { t: "WhatsApp-dan rezervasiya et", d: "Bir kliklə hazır mesaj göndər." },
+            { t: "Rezerv et", d: "Bir kliklə WhatsApp-da hazır mesaj göndər." },
           ].map((s, i) => (
             <div
               key={s.t}

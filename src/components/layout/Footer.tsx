@@ -47,7 +47,7 @@ export function Footer({
     return () => clearInterval(id);
   }, []);
 
-  const wa = getWhatsAppUrl(whatsappNumber, "Salam. Kameraz.com — rezervasiya üçün yazıram.");
+  const wa = getWhatsAppUrl(whatsappNumber, "Salam. kamera.agency — rezervasiya üçün yazıram.");
   const socials = [
     { label: "Instagram", href: instagram },
     { label: "TikTok", href: tiktok },

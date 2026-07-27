@@ -50,7 +50,7 @@ export function Hero({
 
   const wa = getWhatsAppUrl(
     whatsappNumber,
-    "Salam. Kameraz.com — çəkiliş avadanlığı haqqında soruşuram.",
+    "Salam. kamera.agency saytından yazıram — çəkiliş avadanlığı haqqında soruşuram.",
   );
 
   return (
@@ -161,7 +161,7 @@ export function Hero({
               className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-md border border-[#25D366]/45 bg-transparent text-[15px] font-medium text-[#25D366] transition active:bg-[#25D366]/10 touch-manipulation sm:hover:bg-[#25D366]/08"
             >
               <MessageCircle className="h-4 w-4" />
-              WhatsApp ilə əlaqə
+              Rezerv et
             </a>
           </motion.div>
         </div>

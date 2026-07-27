@@ -93,10 +93,7 @@ export function ProductDetailClient({
         ? product.monthlyPrice
         : product.dailyPrice;
 
-  const productUrl =
-    typeof window !== "undefined"
-      ? window.location.href
-      : absoluteUrl(`/avadanliqlar/${product.slug}`);
+  const productUrl = absoluteUrl(`/avadanliqlar/${product.slug}`);
 
   const message = buildWhatsAppMessage({
     productName: product.name,
@@ -111,7 +108,11 @@ export function ProductDetailClient({
   const waUrl = getWhatsAppUrlForDevice(settings.whatsappNumber, message);
 
   async function onWhatsApp() {
-    await trackWhatsAppClick(product.id, priceType, "product-detail");
+    try {
+      await trackWhatsAppClick(product.id, priceType, "product-detail");
+    } catch {
+      /* tracking uğursuz olsa da WhatsApp açılsın */
+    }
     window.open(waUrl, "_blank", "noopener,noreferrer");
   }
 
@@ -261,7 +262,7 @@ export function ProductDetailClient({
             data-cursor="ask"
             onClick={onWhatsApp}
           >
-            WhatsApp-da soruş
+            Rezerv et
           </Button>
         </div>
 

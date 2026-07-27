@@ -2,12 +2,12 @@ import { formatPrice } from "@/lib/utils";
 import type { WhatsAppMessageOptions } from "@/types";
 
 export const DEFAULT_WHATSAPP_TEMPLATE =
-  "Salam. Kameraz.com saytında {name} modelinə baxdım. Qiyməti: {price}. Kirayə şərtləri barədə məlumat almaq istəyirəm. Link: {url}";
+  "Salam. kamera.agency saytından yazıram.\n\n{name} modelinə baxdım.\n{priceType} qiymət: {price}\nİstədiyim tarix: {dates}\nMəhsul linki: {url}\n\nBu avadanlığı kirayə götürmək istəyirəm. Zəhmət olmasa, həmin tarixlərdə boş olub-olmadığını bildirərdiniz.\n{note}";
 
 const PRICE_TYPE_LABELS_AZ: Record<string, string> = {
-  DAILY: "günlük",
-  WEEKLY: "həftəlik",
-  MONTHLY: "aylıq",
+  DAILY: "Günlük",
+  WEEKLY: "Həftəlik",
+  MONTHLY: "Aylıq",
 };
 
 function formatDateAz(date: string | Date): string {
@@ -45,18 +45,23 @@ export function buildWhatsAppMessage(options: WhatsAppMessageOptions): string {
 
   let message = template
     .replaceAll("{name}", productName)
-    .replaceAll("{price}", priceTypeLabel ? `${priceLabel} (${priceTypeLabel})` : priceLabel)
-    .replaceAll("{priceType}", priceTypeLabel)
+    .replaceAll("{price}", priceLabel)
+    .replaceAll("{priceType}", priceTypeLabel || "Kirayə")
     .replaceAll("{url}", productUrl)
-    .replaceAll("{dates}", datesLabel)
-    .replaceAll("{note}", note ?? "");
+    .replaceAll("{dates}", datesLabel || "hələ seçilməyib")
+    .replaceAll("{note}", note?.trim() ? `Qeyd: ${note.trim()}` : "");
 
-  if (!template.includes("{dates}") && datesLabel) {
-    message += `\nTarixlər: ${datesLabel}`;
-  }
-  if (!template.includes("{note}") && note) {
-    message += `\nQeyd: ${note}`;
-  }
+  // Boş sətirləri təmizlə
+  message = message
+    .split("\n")
+    .filter((line, i, arr) => {
+      const t = line.trim();
+      if (t !== "") return true;
+      // ardıcıl boş sətirləri 1-ə endir
+      return i > 0 && arr[i - 1]?.trim() !== "";
+    })
+    .join("\n")
+    .trim();
 
   return message;
 }
@@ -98,9 +103,6 @@ export function getWhatsAppUrlForDevice(phone: string, message: string): string 
   const digitsOnly = normalizePhoneNumber(phone).replace(/^\+/, "");
   const encodedMessage = encodeURIComponent(message);
 
-  if (isMobileDevice()) {
-    return `https://wa.me/${digitsOnly}?text=${encodedMessage}`;
-  }
-
-  return `https://web.whatsapp.com/send?phone=${digitsOnly}&text=${encodedMessage}`;
+  // Mobile və desktop üçün wa.me — daha etibarlı açılır
+  return `https://wa.me/${digitsOnly}?text=${encodedMessage}`;
 }

@@ -7,23 +7,23 @@ function settingRowId(key: string) {
 }
 
 export const DEFAULT_SETTINGS: SettingsShape = {
-  siteName: "Kameraz.com",
+  siteName: "kamera.agency",
   whatsappNumber: "+994501234567",
   whatsappTemplate:
-    "Salam. Kameraz.com saytında {name} modelinə baxdım. Qiyməti: {price}. Kirayə şərtləri barədə məlumat almaq istəyirəm. Link: {url}",
+    "Salam. kamera.agency saytından yazıram.\n\n{name} modelinə baxdım.\n{priceType} qiymət: {price}\nİstədiyim tarix: {dates}\nMəhsul linki: {url}\n\nBu avadanlığı kirayə götürmək istəyirəm. Zəhmət olmasa, həmin tarixlərdə boş olub-olmadığını bildirərdiniz.\n{note}",
   phone: "+994501234567",
-  email: "info@kameraz.com",
+  email: "info@kamera.agency",
   address: "Bakı, Azərbaycan",
-  workingHours: "Hər gün 09:00 - 21:00",
+  workingHours: "Hər gün 10:00 – 20:00",
   instagram: "https://instagram.com/kameraz.az",
   tiktok: "https://tiktok.com/@kameraz.az",
   youtube: "https://youtube.com/@kameraz.az",
-  footerText: "Kameraz.com — Bakıda peşəkar foto və video texnikasının kirayəsi.",
-  heroTitle: "Peşəkar kamera texnikası kirayəsi",
+  footerText: "kamera.agency — peşəkar çəkiliş avadanlığı kirayəsi.",
+  heroTitle: "KAMERA.AGENCY",
   heroSlogan: "Çəkilişə hazır avadanlıq. Sən yalnız ideyanı gətir.",
   heroImage: "",
-  ctaText: "WhatsApp ilə əlaqə",
-  seoTitle: "Kameraz.com — Foto və Video Avadanlıq Kirayəsi Bakı",
+  ctaText: "Rezerv et",
+  seoTitle: "kamera.agency — Foto və Video Avadanlıq Kirayəsi Bakı",
   seoDescription:
     "Bakıda peşəkar kamera, linza, işıq və stabilizator kirayəsi. WhatsApp ilə sürətli rezervasiya.",
   mapsUrl: "https://maps.google.com/?q=Baku",

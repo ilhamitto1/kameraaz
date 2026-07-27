@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 export default async function ContactPage() {
   const s = await getPublicSettings();
-  const wa = getWhatsAppUrl(s.whatsappNumber, "Salam. Kameraz.com əlaqə səhifəsindən yazıram.");
+  const wa = getWhatsAppUrl(s.whatsappNumber, "Salam. kamera.agency əlaqə səhifəsindən yazıram.");
 
   return (
     <div className="mx-auto max-w-7xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-24 sm:px-5 sm:pt-28 md:px-8 lg:pb-28">
