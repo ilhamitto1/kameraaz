@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { decimalToNumber } from "@/lib/utils";
+import type { CardProduct } from "@/components/products/ProductCard";
 
 /** Slim card payload — O(k) fields needed for list UI, not full product graph. */
 const cardSelect = {
@@ -31,7 +32,7 @@ function serializeCard(p: {
   isNew: boolean;
   brand: { name: string } | null;
   category: { name: string; slug: string } | null;
-}) {
+}): CardProduct {
   return {
     id: p.id,
     name: p.name,
@@ -42,8 +43,8 @@ function serializeCard(p: {
     status: p.status,
     isFeatured: p.isFeatured,
     isNew: p.isNew,
-    brand: p.brand ?? undefined,
-    category: p.category ? { name: p.category.name } : undefined,
+    brand: p.brand,
+    category: p.category ? { name: p.category.name } : null,
   };
 }
 

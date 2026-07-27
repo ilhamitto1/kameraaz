@@ -100,7 +100,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
       ) : (
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {result.items.map((p) => (
-            <ProductCard key={p.id} product={p as never} />
+            <ProductCard key={p.id} product={p} />
           ))}
         </div>
       )}
