@@ -28,6 +28,7 @@ export function Navbar({
   useEffect(() => {
     let lastY = window.scrollY;
     let ticking = false;
+    const desktopMq = window.matchMedia("(min-width: 1024px)");
 
     const onScroll = () => {
       if (ticking) return;
@@ -38,8 +39,10 @@ export function Navbar({
 
         setCompact(y > 60);
 
-        // Keep visible near top, or when menu is open
-        if (y < 24) {
+        // Mobile: header always visible — hide/show causes scroll “jumps”
+        if (!desktopMq.matches) {
+          setHidden(false);
+        } else if (y < 24) {
           setHidden(false);
         } else if (Math.abs(delta) > 4) {
           setHidden(delta > 0 && y > 80);

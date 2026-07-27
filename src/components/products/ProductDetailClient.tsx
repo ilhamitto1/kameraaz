@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { RecIndicator, TimecodePrice, Textarea, Label, Input } from "@/components/ui/Form";
-import { Button } from "@/components/ui/Button";
 import { formatPrice, absoluteUrl } from "@/lib/utils";
 import {
   buildWhatsAppMessage,
@@ -107,13 +106,9 @@ export function ProductDetailClient({
 
   const waUrl = getWhatsAppUrlForDevice(settings.whatsappNumber, message);
 
-  async function onWhatsApp() {
-    try {
-      await trackWhatsAppClick(product.id, priceType, "product-detail");
-    } catch {
-      /* tracking uğursuz olsa da WhatsApp açılsın */
-    }
-    window.open(waUrl, "_blank", "noopener,noreferrer");
+  function onWhatsApp() {
+    // Tracking async — iOS-da await-dən sonra window.open bloklanır
+    void trackWhatsAppClick(product.id, priceType, "product-detail").catch(() => {});
   }
 
   async function share() {
@@ -254,16 +249,18 @@ export function ProductDetailClient({
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="İstəyə görə qeyd..." />
         </div>
 
-        <div className="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-20 mt-6 lg:static lg:bottom-auto">
-          <Button
-            variant="whatsapp"
-            size="lg"
-            className="h-12 w-full touch-manipulation shadow-[0_8px_30px_rgba(37,211,102,0.25)]"
-            data-cursor="ask"
+        {/* Desktop CTA */}
+        <div className="mt-6 hidden lg:block">
+          <a
+            href={waUrl}
+            target="_blank"
+            rel="noopener noreferrer"
             onClick={onWhatsApp}
+            data-cursor="ask"
+            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-sm bg-[#25D366] px-7 text-base font-semibold text-[#052e16] transition hover:brightness-110"
           >
             Rezerv et
-          </Button>
+          </a>
         </div>
 
         {!!product.specifications?.length && (
@@ -316,6 +313,24 @@ export function ProductDetailClient({
           <img src={images[active]} alt={product.name} className="max-h-full max-w-full object-contain" />
         </div>
       )}
+
+      {/* Mobile fixed CTA — dock-un üstündə, həmişə kliklənə bilən <a> */}
+      <div
+        className="fixed inset-x-0 z-[60] px-3 lg:hidden"
+        style={{
+          bottom: "calc(4.25rem + env(safe-area-inset-bottom, 0px))",
+        }}
+      >
+        <a
+          href={waUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={onWhatsApp}
+          className="flex h-12 w-full items-center justify-center rounded-xl bg-[#25D366] text-base font-semibold text-[#052e16] shadow-[0_8px_30px_rgba(37,211,102,0.35)] touch-manipulation active:scale-[0.98]"
+        >
+          Rezerv et
+        </a>
+      </div>
     </div>
   );
 }
