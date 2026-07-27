@@ -85,7 +85,7 @@ export default async function CategoryPage({ params }: Props) {
       <p className="mono mt-2 text-xs text-[var(--fg-muted)]">{category._count.products} məhsul</p>
       <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {products.map((p) => (
-          <ProductCard key={p.id} product={p} />
+          <ProductCard key={p.id} product={p as never} />
         ))}
       </div>
     </div>

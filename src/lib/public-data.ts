@@ -42,8 +42,8 @@ function serializeCard(p: {
     status: p.status,
     isFeatured: p.isFeatured,
     isNew: p.isNew,
-    brand: p.brand,
-    category: p.category,
+    brand: p.brand ?? undefined,
+    category: p.category ? { name: p.category.name } : undefined,
   };
 }
 
