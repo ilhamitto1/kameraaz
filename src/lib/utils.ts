@@ -26,6 +26,20 @@ export function formatPrice(value: number | string | null | undefined, currency 
   return `${num.toLocaleString("az-AZ", { minimumFractionDigits: 0, maximumFractionDigits: 2 })} ${currency}`;
 }
 
+function normalizeSiteOrigin(raw: string | undefined): string | undefined {
+  if (!raw?.trim()) return undefined;
+  const value = raw.trim();
+  if (!/^https?:\/\//i.test(value)) return undefined;
+  try {
+    const url = new URL(value);
+    // Ignore placeholder URLs from early templates
+    if (url.hostname === "senin-layihe.vercel.app") return undefined;
+    return url.origin;
+  } catch {
+    return undefined;
+  }
+}
+
 export function getSiteUrl(): string {
   const candidates = [
     process.env.NEXT_PUBLIC_SITE_URL,
@@ -38,15 +52,8 @@ export function getSiteUrl(): string {
   ];
 
   for (const raw of candidates) {
-    if (!raw) continue;
-    const value = raw.trim();
-    // Guard against accidental "NEXT_PUBLIC_SITE_URL" pasted as the value
-    if (!/^https?:\/\//i.test(value)) continue;
-    try {
-      return new URL(value).origin;
-    } catch {
-      continue;
-    }
+    const origin = normalizeSiteOrigin(raw);
+    if (origin) return origin;
   }
 
   return "http://localhost:3000";
