@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Syne, DM_Sans, DM_Mono } from "next/font/google";
 import "./globals.css";
 import { AppProviders } from "@/components/providers/AppProviders";
-import { getSiteUrl } from "@/lib/utils";
 import { BRAND_MARK, BRAND_NAME, BRAND_OG_IMAGE } from "@/lib/brand";
 import { absoluteUrl, getSiteUrl } from "@/lib/utils";
 
