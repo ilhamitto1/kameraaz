@@ -50,14 +50,81 @@ function PriceField({
   );
 }
 
+type PickerOpt = { id: string; name: string; categoryName: string };
+
+function ProductRelationsPicker({
+  label,
+  hint,
+  options,
+  selected,
+  onChange,
+}: {
+  label: string;
+  hint: string;
+  options: PickerOpt[];
+  selected: string[];
+  onChange: (ids: string[]) => void;
+}) {
+  const [q, setQ] = useState("");
+  const filtered = useMemo(() => {
+    const query = q.trim().toLowerCase();
+    if (!query) return options;
+    return options.filter(
+      (o) =>
+        o.name.toLowerCase().includes(query) ||
+        o.categoryName.toLowerCase().includes(query),
+    );
+  }, [options, q]);
+
+  return (
+    <div>
+      <Label>{label}</Label>
+      <p className="mb-2 text-[11px] text-[var(--fg-muted)]">{hint}</p>
+      <Input
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder="Axtar..."
+        className="mb-2 h-10 rounded-xl"
+      />
+      <div className="max-h-44 space-y-1 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-2">
+        {filtered.length === 0 ? (
+          <p className="px-2 py-3 text-xs text-[var(--fg-muted)]">Mal tapılmadı</p>
+        ) : (
+          filtered.map((o) => {
+            const checked = selected.includes(o.id);
+            return (
+              <label
+                key={o.id}
+                className="flex cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-sm hover:bg-white/5"
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() =>
+                    onChange(checked ? selected.filter((id) => id !== o.id) : [...selected, o.id])
+                  }
+                />
+                <span className="min-w-0 flex-1 truncate">{o.name}</span>
+                <span className="shrink-0 text-[10px] text-[var(--fg-muted)]">{o.categoryName}</span>
+              </label>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+}
+
 export function ProductForm({
   categories,
   brands,
+  allProducts = [],
   initial,
   defaultCategoryId,
 }: {
   categories: Opt[];
   brands: Opt[];
+  allProducts?: PickerOpt[];
   initial?: Record<string, unknown> | null;
   defaultCategoryId?: string;
 }) {
@@ -76,6 +143,17 @@ export function ProductForm({
   const [moreOpen, setMoreOpen] = useState(false);
   const [categoryId, setCategoryId] = useState(
     (initial?.categoryId as string) || defaultCategoryId || categories[0]?.id || "",
+  );
+  const [accessoryIds, setAccessoryIds] = useState<string[]>(
+    ((initial?.accessories as { accessoryId: string }[]) || []).map((a) => a.accessoryId),
+  );
+  const [relatedProductIds, setRelatedProductIds] = useState<string[]>(
+    ((initial?.relatedFrom as { relatedProductId: string }[]) || []).map((r) => r.relatedProductId),
+  );
+
+  const pickerOptions = useMemo(
+    () => allProducts.filter((p) => p.id !== initial?.id),
+    [allProducts, initial?.id],
   );
 
   const categoryName = useMemo(
@@ -149,14 +227,38 @@ export function ProductForm({
         .map((s) => s.trim())
         .filter(Boolean),
       usageRules: String(fd.get("usageRules") || "") || null,
-      seoTitle: null as string | null,
-      seoDescription: null as string | null,
+      seoTitle: String(fd.get("seoTitle") || "") || null,
+      seoDescription: String(fd.get("seoDescription") || "") || null,
       categoryId,
       brandId,
-      images: mainImage ? [{ url: mainImage, alt: name, sortOrder: 0 }] : [],
+      images: (() => {
+        const prev =
+          (initial?.images as { url: string; alt?: string | null; sortOrder?: number }[]) || [];
+        if (!mainImage) {
+          return prev.map((img, i) => ({
+            url: img.url,
+            alt: img.alt || name.trim(),
+            sortOrder: i,
+          }));
+        }
+        if (prev.length) {
+          const rest = prev.filter(
+            (img) => img.url !== mainImage && img.url !== (initial?.mainImage as string),
+          );
+          return [
+            { url: mainImage, alt: name.trim(), sortOrder: 0 },
+            ...rest.map((img, i) => ({
+              url: img.url,
+              alt: img.alt || name.trim(),
+              sortOrder: i + 1,
+            })),
+          ];
+        }
+        return [{ url: mainImage, alt: name.trim(), sortOrder: 0 }];
+      })(),
       specifications: specs.filter((s) => s.label && s.value),
-      accessoryIds: [] as string[],
-      relatedProductIds: [] as string[],
+      accessoryIds,
+      relatedProductIds,
     };
 
     // Keep existing slug on edit
@@ -470,6 +572,44 @@ export function ProductForm({
                 className="rounded-xl"
               />
             </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label>SEO başlıq</Label>
+                <Input
+                  name="seoTitle"
+                  defaultValue={(initial?.seoTitle as string) || ""}
+                  placeholder="Google üçün başlıq"
+                  className="rounded-xl"
+                />
+              </div>
+              <div>
+                <Label>SEO təsvir</Label>
+                <Input
+                  name="seoDescription"
+                  defaultValue={(initial?.seoDescription as string) || ""}
+                  placeholder="Qısa meta təsvir"
+                  className="rounded-xl"
+                />
+              </div>
+            </div>
+            {pickerOptions.length > 0 && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <ProductRelationsPicker
+                  label="Uyğun aksesuarlar"
+                  hint="Məhsul səhifəsində göstəriləcək"
+                  options={pickerOptions}
+                  selected={accessoryIds}
+                  onChange={setAccessoryIds}
+                />
+                <ProductRelationsPicker
+                  label="Bənzər məhsullar"
+                  hint="Seçilməsə, eyni kateqoriyadan göstərilir"
+                  options={pickerOptions}
+                  selected={relatedProductIds}
+                  onChange={setRelatedProductIds}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>

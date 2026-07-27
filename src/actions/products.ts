@@ -140,6 +140,28 @@ export async function getProductBySlug(slug: string) {
   return serializeProduct(product as never);
 }
 
+export async function getProductPickerList(excludeId?: string) {
+  await requireAdmin();
+  const items = await prisma.product.findMany({
+    where: {
+      deletedAt: null,
+      ...(excludeId ? { NOT: { id: excludeId } } : {}),
+    },
+    select: {
+      id: true,
+      name: true,
+      category: { select: { name: true } },
+    },
+    orderBy: [{ category: { sortOrder: "asc" } }, { name: "asc" }],
+    take: 500,
+  });
+  return items.map((p) => ({
+    id: p.id,
+    name: p.name,
+    categoryName: p.category?.name || "—",
+  }));
+}
+
 export async function getProductById(id: string) {
   await requireAdmin();
   const product = await prisma.product.findFirst({
@@ -385,7 +407,12 @@ export async function duplicateProduct(id: string) {
   const user = await requireAdmin();
   const source = await prisma.product.findFirst({
     where: { id, deletedAt: null },
-    include: { images: true, specifications: true },
+    include: {
+      images: true,
+      specifications: true,
+      accessories: true,
+      relatedFrom: true,
+    },
   });
   if (!source) return { success: false as const, error: "Tapılmadı" };
 
@@ -429,6 +456,16 @@ export async function duplicateProduct(id: string) {
           label: s.label,
           value: s.value,
           sortOrder: s.sortOrder,
+        })),
+      },
+      accessories: {
+        create: source.accessories.map((a) => ({
+          accessoryId: a.accessoryId,
+        })),
+      },
+      relatedFrom: {
+        create: source.relatedFrom.map((r) => ({
+          relatedProductId: r.relatedProductId,
         })),
       },
     },

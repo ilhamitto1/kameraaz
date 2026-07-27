@@ -8,7 +8,7 @@ import {
   buildWhatsAppMessage,
   getWhatsAppUrlForDevice,
 } from "@/lib/whatsapp";
-import { trackWhatsAppClick } from "@/actions/products";
+import { trackWhatsAppClick, incrementView } from "@/actions/products";
 import { Share2 } from "lucide-react";
 
 type Product = {
@@ -59,6 +59,10 @@ export function ProductDetailClient({
   const [endDate, setEndDate] = useState("");
   const [note, setNote] = useState("");
   const [fullscreen, setFullscreen] = useState(false);
+
+  useEffect(() => {
+    void incrementView(product.id);
+  }, [product.id]);
 
   useEffect(() => {
     try {

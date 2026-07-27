@@ -79,11 +79,18 @@ export default async function CategoryPage({ params }: Props) {
       <h1 className="display-font mt-2 text-4xl sm:text-5xl">{category.name}</h1>
       <p className="mt-3 max-w-2xl text-[var(--fg-muted)]">{category.description}</p>
       <p className="mono mt-2 text-xs text-[var(--fg-muted)]">{category._count.products} məhsul</p>
+      {products.length === 0 ? (
+        <div className="mt-16 border border-[var(--border)] p-16 text-center">
+          <p className="display-font text-3xl">Bu kateqoriyada mal yoxdur</p>
+          <p className="mt-3 text-[var(--fg-muted)]">Tezliklə yeni avadanlıqlar əlavə olunacaq.</p>
+        </div>
+      ) : (
       <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {products.map((p) => (
           <ProductCard key={p.id} product={p} />
         ))}
       </div>
+      )}
     </div>
   );
 }

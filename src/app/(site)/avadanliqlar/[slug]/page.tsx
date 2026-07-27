@@ -1,13 +1,13 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
-import { incrementView } from "@/actions/products";
-import { getPublicSettings } from "@/actions/admin";
 import { ProductDetailClient } from "@/components/products/ProductDetailClient";
 import { ProductCard } from "@/components/products/ProductCard";
+import type { CardProduct } from "@/components/products/ProductCard";
 import {
   getCachedProductBySlug,
   getCachedRelatedByCategory,
 } from "@/lib/public-data";
+import { getPublicSettings } from "@/actions/admin";
 import { absoluteUrl, formatPrice, getSiteUrl } from "@/lib/utils";
 import { az } from "@/lib/i18n/az";
 
@@ -61,12 +61,16 @@ export default async function ProductPage({ params }: Props) {
   ]);
   if (!product) notFound();
 
-  void incrementView(product.id as string);
-
+  const curated = (product.relatedProducts as CardProduct[]) || [];
   const categorySlug = (product.category as { slug?: string } | null)?.slug;
-  const related = categorySlug
-    ? await getCachedRelatedByCategory(categorySlug, product.id as string, 4)
-    : [];
+  const related =
+    curated.length > 0
+      ? curated
+      : categorySlug
+        ? await getCachedRelatedByCategory(categorySlug, product.id as string, 4)
+        : [];
+
+  const accessories = (product.accessories as CardProduct[]) || [];
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -106,9 +110,20 @@ export default async function ProductPage({ params }: Props) {
         statusLabel={az.status[product.status as keyof typeof az.status] || String(product.status)}
       />
 
+      {accessories.length > 0 && (
+        <section className="mt-24">
+          <h2 className="display-font text-3xl">{az.products.accessories}</h2>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {accessories.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {related.length > 0 && (
         <section className="mt-24">
-          <h2 className="display-font text-3xl">Əlaqəli məhsullar</h2>
+          <h2 className="display-font text-3xl">{az.products.relatedProducts}</h2>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {related.map((p) => (
               <ProductCard key={p.id} product={p} />

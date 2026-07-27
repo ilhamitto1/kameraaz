@@ -56,6 +56,12 @@ export async function uploadImage(file: File): Promise<UploadResult> {
     return uploadToCloudinary(file);
   }
 
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL) {
+    throw new UploadValidationError(
+      "Production-da şəkil yükləmək üçün CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY və CLOUDINARY_API_SECRET təyin edin.",
+    );
+  }
+
   return uploadToLocalDisk(file);
 }
 

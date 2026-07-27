@@ -204,11 +204,31 @@ export function getCachedProductBySlug(slug: string) {
             orderBy: { sortOrder: "asc" },
             select: { id: true, label: true, value: true },
           },
+          bookingDates: {
+            orderBy: { startDate: "asc" },
+            select: { id: true, startDate: true, endDate: true },
+          },
+          accessories: {
+            where: {
+              accessory: { deletedAt: null, isActive: true, archivedAt: null },
+            },
+            include: {
+              accessory: { select: cardSelect },
+            },
+          },
+          relatedFrom: {
+            where: {
+              relatedProduct: { deletedAt: null, isActive: true, archivedAt: null },
+            },
+            include: {
+              relatedProduct: { select: cardSelect },
+            },
+          },
         },
       });
       if (!product) return null;
 
-      return JSON.parse(
+      const serialized = JSON.parse(
         JSON.stringify(product, (_k, value) => {
           if (
             value !== null &&
@@ -220,6 +240,22 @@ export function getCachedProductBySlug(slug: string) {
           return value;
         }),
       ) as Record<string, unknown>;
+
+      const accessories = (
+        (product.accessories as { accessory: Parameters<typeof serializeCard>[0] }[]) || []
+      )
+        .map((a) => a.accessory)
+        .filter(Boolean)
+        .map(serializeCard);
+
+      const relatedProducts = (
+        (product.relatedFrom as { relatedProduct: Parameters<typeof serializeCard>[0] }[]) || []
+      )
+        .map((r) => r.relatedProduct)
+        .filter(Boolean)
+        .map(serializeCard);
+
+      return { ...serialized, accessories, relatedProducts } as Record<string, unknown>;
     },
     [`product-${slug}`],
     { revalidate: 120, tags: ["products", `product-${slug}`] },

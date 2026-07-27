@@ -135,29 +135,38 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
 
       {result.totalPages > 1 && (
         <div className="mt-12 flex justify-center gap-2">
-          {Array.from({ length: result.totalPages }, (_, i) => i + 1).map((n) => (
-            <a
-              key={n}
-              href={`?${new URLSearchParams({
-                ...Object.fromEntries(
-                  Object.entries({
-                    kateqoriya: get("kateqoriya"),
-                    marka: get("marka"),
-                    q: get("q"),
-                    sort: get("sort"),
-                  }).filter(([, v]) => v),
-                ),
-                sehife: String(n),
-              }).toString()}`}
-              className={`border px-3 py-2 text-sm ${
-                n === result.page
-                  ? "border-[var(--accent)] text-[var(--accent)]"
-                  : "border-[var(--border)] text-[var(--fg-muted)]"
-              }`}
-            >
-              {n}
-            </a>
-          ))}
+          {Array.from({ length: result.totalPages }, (_, i) => i + 1).map((n) => {
+            const params = new URLSearchParams();
+            const keys = [
+              "kateqoriya",
+              "marka",
+              "q",
+              "sort",
+              "status",
+              "secilmis",
+              "yeni",
+              "qiymetMin",
+              "qiymetMax",
+            ] as const;
+            for (const k of keys) {
+              const v = get(k);
+              if (v) params.set(k, v);
+            }
+            params.set("sehife", String(n));
+            return (
+              <a
+                key={n}
+                href={`?${params.toString()}`}
+                className={`border px-3 py-2 text-sm ${
+                  n === result.page
+                    ? "border-[var(--accent)] text-[var(--accent)]"
+                    : "border-[var(--border)] text-[var(--fg-muted)]"
+                }`}
+              >
+                {n}
+              </a>
+            );
+          })}
         </div>
       )}
     </div>

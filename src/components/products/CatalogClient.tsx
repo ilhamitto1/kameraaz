@@ -109,6 +109,26 @@ export function CatalogClient({
         />
         Yeni
       </label>
+      <div className="flex gap-2">
+        <Input
+          type="number"
+          min="0"
+          placeholder="Min AZN"
+          value={initialQuery.qiymetMin}
+          onChange={(e) => update({ qiymetMin: e.target.value })}
+          className="h-11"
+          aria-label="Minimum qiymət"
+        />
+        <Input
+          type="number"
+          min="0"
+          placeholder="Max AZN"
+          value={initialQuery.qiymetMax}
+          onChange={(e) => update({ qiymetMax: e.target.value })}
+          className="h-11"
+          aria-label="Maksimum qiymət"
+        />
+      </div>
     </>
   );
 

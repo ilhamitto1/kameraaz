@@ -2,6 +2,8 @@ import { CustomCursor } from "@/components/cursor/CustomCursor";
 import { LoadingScreen } from "@/components/layout/LoadingScreen";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
+import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
+import { AnnouncementBar } from "@/components/layout/AnnouncementBar";
 import { getNavigation, getPublicSettings } from "@/actions/admin";
 import { getCategories } from "@/actions/catalog";
 import { DEFAULT_SETTINGS } from "@/lib/settings";
@@ -34,6 +36,10 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     console.error("[site-layout] shell load failed", err);
   }
 
+  if (settings.maintenanceMode) {
+    return <MaintenanceScreen message={settings.announcementBar} />;
+  }
+
   const items = nav.map((n) => {
     const cat = categories.find(
       (c) => n.href === `/kateqoriya/${c.slug}` || n.href.endsWith(`/${c.slug}`),
@@ -47,6 +53,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
 
   return (
     <>
+      <AnnouncementBar text={settings.announcementBar} />
       <LoadingScreen />
       <CustomCursor />
       <Navbar items={items} whatsappNumber={settings.whatsappNumber} />
@@ -58,6 +65,10 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
         email={settings.email}
         address={settings.address}
         footerText={settings.footerText}
+        logo={settings.logo}
+        instagram={settings.instagram}
+        tiktok={settings.tiktok}
+        youtube={settings.youtube}
         categories={categories.map((c) => ({ name: c.name, slug: c.slug }))}
       />
     </>

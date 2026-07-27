@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCategories, getBrands } from "@/actions/catalog";
+import { getProductPickerList } from "@/actions/products";
 import { ProductForm } from "@/components/admin/ProductForm";
 
 export default async function NewProductPage({
@@ -8,9 +9,10 @@ export default async function NewProductPage({
   searchParams: Promise<{ category?: string }>;
 }) {
   const sp = await searchParams;
-  const [categories, brands] = await Promise.all([
+  const [categories, brands, allProducts] = await Promise.all([
     getCategories({ admin: true }),
     getBrands({ admin: true }),
+    getProductPickerList(),
   ]);
 
   const selected = categories.find((c) => c.id === sp.category);
@@ -31,6 +33,7 @@ export default async function NewProductPage({
       <ProductForm
         categories={categories.map((c) => ({ id: c.id, name: c.name }))}
         brands={brands.map((b) => ({ id: b.id, name: b.name }))}
+        allProducts={allProducts}
         defaultCategoryId={sp.category}
       />
     </div>

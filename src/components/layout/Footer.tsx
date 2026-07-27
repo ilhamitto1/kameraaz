@@ -11,6 +11,10 @@ export function Footer({
   email,
   address,
   footerText,
+  logo,
+  instagram,
+  tiktok,
+  youtube,
   categories,
 }: {
   slogan: string;
@@ -19,6 +23,10 @@ export function Footer({
   email: string;
   address: string;
   footerText: string;
+  logo?: string;
+  instagram?: string;
+  tiktok?: string;
+  youtube?: string;
   categories: { name: string; slug: string }[];
 }) {
   const [tc, setTc] = useState("00:00:00:00");
@@ -40,6 +48,11 @@ export function Footer({
   }, []);
 
   const wa = getWhatsAppUrl(whatsappNumber, "Salam. Kameraz.com — rezervasiya üçün yazıram.");
+  const socials = [
+    { label: "Instagram", href: instagram },
+    { label: "TikTok", href: tiktok },
+    { label: "YouTube", href: youtube },
+  ].filter((s) => s.href?.trim());
 
   return (
     <footer className="mt-16 border-t border-[var(--border)] bg-[var(--bg-elevated)] pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:mt-24 lg:pb-10">
@@ -47,11 +60,27 @@ export function Footer({
         <div className="md:col-span-4">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/brand/hero-logo.png"
+            src={logo?.trim() || "/brand/hero-logo.png"}
             alt="Kameraa AZ"
             className="h-12 w-auto max-w-[200px] object-contain opacity-90"
           />
           <p className="mt-3 max-w-sm text-sm text-[var(--fg-muted)]">{slogan}</p>
+          {socials.length > 0 && (
+            <ul className="mt-4 flex flex-wrap gap-3 text-xs uppercase tracking-wider text-[var(--fg-muted)]">
+              {socials.map((s) => (
+                <li key={s.label}>
+                  <a
+                    href={s.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="hover:text-[var(--accent)]"
+                  >
+                    {s.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
           <p className="mono mt-6 text-xs text-[var(--accent)]">BAKU TC // {tc}</p>
         </div>
 
