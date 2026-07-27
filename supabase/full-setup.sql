@@ -1,15 +1,13 @@
 -- =============================================================================
--- KAMERAZ.COM — TAM SUPABASE QURULUMU (1 dəfə RUN et)
--- SQL Editor → New query → bu faylın HAMISINI yapışdır → RUN
+-- KAMERAZ / kamera.agency — TAM SUPABASE QURULUMU
+-- SQL Editor → bütün faylı yapışdır → RUN
 --
--- Bu skript:
---   1) Cədvəlləri yaradır (yoxdursa)
---   2) profiles + auth trigger
---   3) Köhnə məlumatı təmizləyib yenidən seed edir (ID-lər uyğun)
---   4) 19 məhsul, navbar, parametrlər, nümunə mesaj/rezervasiya
+-- TƏHLÜKƏSİZ: mövcud məhsul, şəkil, parametr, mesaj SİLİNMİR.
+-- Yalnız çatışmayan seed sətirləri əlavə olunur (ON CONFLICT DO NOTHING).
 --
--- Şəkil yükləmə: SQL-də deyil — admin /api/upload → lokal və ya Cloudinary.
--- Production üçün Vercel-də CLOUDINARY_* env lazımdır.
+-- Vercel/GitHub deploy DB-yə TOXUNMUR — məlumat Supabase-də qalır.
+--
+-- Bütün datanı sıfırlamaq istəyirsənsə (NADİR!): DANGER-reset-all-data.sql
 -- =============================================================================
 
 -- ===================== 1) ENUM =====================
@@ -27,6 +25,7 @@ DO $$ BEGIN
   CREATE TYPE "PriceType" AS ENUM ('DAILY','WEEKLY','MONTHLY');
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;
+
 
 -- ===================== 2) CƏDVƏLLƏR =====================
 CREATE TABLE IF NOT EXISTS "Category" (
@@ -247,36 +246,18 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
--- ===================== 4) TƏMİZLƏ (köhnə Prisma ID-ləri sil) =====================
--- Sıra vacibdir — uşaq cədvəllər əvvəl
-TRUNCATE TABLE
-  "WhatsAppClick",
-  "ProductView",
-  "BookingDate",
-  "Specification",
-  "ProductImage",
-  "ProductAccessory",
-  "RelatedProduct",
-  "Product",
-  "NavigationItem",
-  "SocialLink",
-  "ContactMessage",
-  "ActivityLog",
-  "SiteSetting",
-  "Category",
-  "Brand"
-CASCADE;
-
--- Köhnə Prisma User cədvəli lazım deyil (auth.users + profiles)
+-- ===================== 4) Köhnə Prisma User (auth.users + profiles istifadə edirik) =====================
+-- Məhsul/kateqoriya məlumatına toxunmur
 DROP TABLE IF EXISTS "User" CASCADE;
 
--- ===================== 5) SEED — Kateqoriya / Marka =====================
+-- ===================== 5) SEED — Kateqoriya / Marka (mövcud olanlar qalır) =====================
 INSERT INTO "Category" ("id","name","slug","description","icon","sortOrder","isVisible","showInNav","createdAt","updatedAt") VALUES
   ('cat_fotoaparatlar','Fotoaparatlar','fotoaparatlar','Peşəkar foto və hybrid kameralar','Camera',1,true,true,NOW(),NOW()),
   ('cat_linzalar','Linzalar','linzalar','Prime və zoom obyektivlər','Aperture',2,true,true,NOW(),NOW()),
   ('cat_isiqlar','İşıqlar','isiqlar','LED və continuous işıq sistemləri','Lamp',3,true,true,NOW(),NOW()),
   ('cat_stabilizatorlar','Stabilizatorlar','stabilizatorlar','Gimbal və stabilizasiya','Move3d',4,true,true,NOW(),NOW()),
-  ('cat_aksesuarlar','Aksesuarlar','aksesuarlar','Tripod, monitor, batareya və digər','Box',5,true,true,NOW(),NOW());
+  ('cat_aksesuarlar','Aksesuarlar','aksesuarlar','Tripod, monitor, batareya və digər','Box',5,true,true,NOW(),NOW())
+ON CONFLICT ("id") DO NOTHING;
 
 INSERT INTO "Brand" ("id","name","slug","isActive","createdAt","updatedAt") VALUES
   ('brand_canon','Canon','canon',true,NOW(),NOW()),
@@ -287,7 +268,8 @@ INSERT INTO "Brand" ("id","name","slug","isActive","createdAt","updatedAt") VALU
   ('brand_sigma','Sigma','sigma',true,NOW(),NOW()),
   ('brand_tamron','Tamron','tamron',true,NOW(),NOW()),
   ('brand_godox','Godox','godox',true,NOW(),NOW()),
-  ('brand_aputure','Aputure','aputure',true,NOW(),NOW());
+  ('brand_aputure','Aputure','aputure',true,NOW(),NOW())
+ON CONFLICT ("id") DO NOTHING;
 
 -- ===================== 6) SEED — Məhsullar =====================
 INSERT INTO "Product" (
@@ -313,9 +295,10 @@ INSERT INTO "Product" (
 ('prod_monitor','Monitor','monitor','KZ-016','7" HDMI field monitor.','Focus peaking, false color və waveform ilə field monitor.',20,90,NULL,120,true,true,false,'AVAILABLE',15,false,true,false,ARRAY['Monitor','Sunhood','HDMI cable','Battery plate'],'Avadanlığı zədələməyin.','Monitor kirayə | Kameraz.com','7 inch field monitor.','cat_aksesuarlar','brand_blackmagic',NOW(),NOW()),
 ('prod_card','Memory card','memory-card','KZ-017','CFexpress / SD UHS-II yüksək sürətli kart.','8K və yüksək bitrate video üçün yaddaş kartı.',8,35,NULL,40,true,true,false,'AVAILABLE',16,false,true,false,ARRAY['Kart','Case'],'Avadanlığı zədələməyin.','Memory card kirayə | Kameraz.com','Yüksək sürətli kart.','cat_aksesuarlar','brand_sony',NOW(),NOW()),
 ('prod_bag','Kamera çantası','kamera-cantasi','KZ-018','Sərt və yumşaq qoruyucu çanta.','Avadanlıqların daşınması üçün padded kamera çantası.',5,20,NULL,30,true,true,false,'AVAILABLE',17,false,true,false,ARRAY['Çanta','Rain cover'],'Avadanlığı zədələməyin.','Kamera çantası kirayə | Kameraz.com','Padded kamera çantası.','cat_aksesuarlar','brand_canon',NOW(),NOW()),
-('prod_vmount','V-Mount batareya','v-mount-batareya','KZ-019','High capacity V-Mount power.','Cinema kameralar və işıqlar üçün V-Mount batareya.',12,55,NULL,100,true,true,false,'AVAILABLE',18,false,true,false,ARRAY['Battery','Charger'],'Avadanlığı zədələməyin.','V-Mount batareya kirayə | Kameraz.com','V-Mount power.','cat_aksesuarlar','brand_sony',NOW(),NOW());
+('prod_vmount','V-Mount batareya','v-mount-batareya','KZ-019','High capacity V-Mount power.','Cinema kameralar və işıqlar üçün V-Mount batareya.',12,55,NULL,100,true,true,false,'AVAILABLE',18,false,true,false,ARRAY['Battery','Charger'],'Avadanlığı zədələməyin.','V-Mount batareya kirayə | Kameraz.com','V-Mount power.','cat_aksesuarlar','brand_sony',NOW(),NOW())
+ON CONFLICT ("id") DO NOTHING;
 
--- ===================== 7) Xüsusiyyətlər (məhsul ID-ləri artıq mövcuddur) =====================
+-- ===================== 7) Xüsusiyyətlər =====================
 INSERT INTO "Specification" ("id","label","value","sortOrder","productId") VALUES
 ('spec_r5_1','Sensor','Full Frame 45MP',0,'prod_r5'),
 ('spec_r5_2','Video','8K RAW / 4K 120p',1,'prod_r5'),
@@ -333,21 +316,23 @@ INSERT INTO "Specification" ("id","label","value","sortOrder","productId") VALUE
 ('spec_rf2470_3','Mount','RF',2,'prod_rf2470'),
 ('spec_rs3_1','Payload','4.5 kg',0,'prod_rs3'),
 ('spec_rs3_2','Axis','3-axis',1,'prod_rs3'),
-('spec_rs3_3','Battery','~12 saat',2,'prod_rs3');
+('spec_rs3_3','Battery','~12 saat',2,'prod_rs3')
+ON CONFLICT ("id") DO NOTHING;
 
--- Aksesuar əlaqələri (R5 + linza / tripod)
 INSERT INTO "ProductAccessory" ("id","productId","accessoryId") VALUES
 ('acc_r5_tripod','prod_r5','prod_tripod'),
 ('acc_r5_card','prod_r5','prod_card'),
 ('acc_r5_bag','prod_r5','prod_bag'),
-('acc_r5_rf2470','prod_r5','prod_rf2470');
+('acc_r5_rf2470','prod_r5','prod_rf2470')
+ON CONFLICT ("id") DO NOTHING;
 
 INSERT INTO "RelatedProduct" ("id","productId","relatedProductId") VALUES
 ('rel_r5_a7s3','prod_r5','prod_a7s3'),
 ('rel_r5_fx3','prod_r5','prod_fx3'),
-('rel_r5_rf2470','prod_r5','prod_rf2470');
+('rel_r5_rf2470','prod_r5','prod_rf2470')
+ON CONFLICT ("id") DO NOTHING;
 
--- ===================== 8) Sayt parametrləri =====================
+-- ===================== 8) Sayt parametrləri (admin dəyişiklikləri qorunur) =====================
 INSERT INTO "SiteSetting" ("id","key","value","updatedAt") VALUES
 ('set_siteName','siteName',to_jsonb('kamera.agency'::text),NOW()),
 ('set_whatsappNumber','whatsappNumber',to_jsonb('+994501234567'::text),NOW()),
@@ -370,7 +355,8 @@ INSERT INTO "SiteSetting" ("id","key","value","updatedAt") VALUES
 ('set_announcementBar','announcementBar',to_jsonb(''::text),NOW()),
 ('set_maintenanceMode','maintenanceMode','false'::jsonb,NOW()),
 ('set_logo','logo',to_jsonb(''::text),NOW()),
-('set_favicon','favicon',to_jsonb(''::text),NOW());
+('set_favicon','favicon',to_jsonb(''::text),NOW())
+ON CONFLICT ("key") DO NOTHING;
 
 -- ===================== 9) Navbar + sosial =====================
 INSERT INTO "NavigationItem" ("id","label","href","sortOrder","isVisible","createdAt","updatedAt") VALUES
@@ -380,30 +366,32 @@ INSERT INTO "NavigationItem" ("id","label","href","sortOrder","isVisible","creat
 ('nav_isiq','İşıqlar','/kateqoriya/isiqlar',3,true,NOW(),NOW()),
 ('nav_stab','Stabilizatorlar','/kateqoriya/stabilizatorlar',4,true,NOW(),NOW()),
 ('nav_aks','Aksesuarlar','/kateqoriya/aksesuarlar',5,true,NOW(),NOW()),
-('nav_elaqe','Əlaqə','/elaqe',6,true,NOW(),NOW());
+('nav_elaqe','Əlaqə','/elaqe',6,true,NOW(),NOW())
+ON CONFLICT ("id") DO NOTHING;
 
 INSERT INTO "SocialLink" ("id","platform","url","sortOrder","isVisible","createdAt","updatedAt") VALUES
 ('soc_instagram','Instagram','https://instagram.com/kameraz.az',0,true,NOW(),NOW()),
 ('soc_tiktok','TikTok','https://tiktok.com/@kameraz.az',1,true,NOW(),NOW()),
-('soc_youtube','YouTube','https://youtube.com/@kameraz.az',2,true,NOW(),NOW());
+('soc_youtube','YouTube','https://youtube.com/@kameraz.az',2,true,NOW(),NOW())
+ON CONFLICT ("id") DO NOTHING;
 
--- ===================== 10) Nümunə rezervasiya + mesaj =====================
+-- ===================== 10) Nümunə (yalnız yoxdursa) =====================
 INSERT INTO "BookingDate" ("id","productId","startDate","endDate","note","createdAt","updatedAt")
-VALUES ('book_r5_sample','prod_r5',CURRENT_DATE + 3,CURRENT_DATE + 5,'Nümunə rezervasiya',NOW(),NOW());
+VALUES ('book_r5_sample','prod_r5',CURRENT_DATE + 3,CURRENT_DATE + 5,'Nümunə rezervasiya',NOW(),NOW())
+ON CONFLICT ("id") DO NOTHING;
 
 INSERT INTO "ContactMessage" ("id","name","email","phone","subject","message","status","createdAt","updatedAt")
-VALUES ('msg_sample','Elvin Məmmədov','elvin@example.com','+994501112233','Canon R5 kirayə','Salam, gələn həftə üçün Canon R5 boşdurmu?','NEW',NOW(),NOW());
+VALUES ('msg_sample','Elvin Məmmədov','elvin@example.com','+994501112233','Canon R5 kirayə','Salam, gələn həftə üçün Canon R5 boşdurmu?','NEW',NOW(),NOW())
+ON CONFLICT ("id") DO NOTHING;
 
 INSERT INTO "ActivityLog" ("id","userId","action","entity","entityId","details","createdAt")
-VALUES ('act_seed',NULL,'SEED','System',NULL,'{"message":"İlkin məlumatlar yükləndi"}'::jsonb,NOW());
+VALUES ('act_seed',NULL,'SEED','System',NULL,'{"message":"İlkin məlumatlar yükləndi"}'::jsonb,NOW())
+ON CONFLICT ("id") DO NOTHING;
 
 -- ===================== YOXLAMA =====================
--- Table Editor-də görməlisən:
---   Category: 5 | Brand: 9 | Product: 19 | SiteSetting: 22 | NavigationItem: 7
 SELECT
-  (SELECT COUNT(*) FROM "Category") AS categories,
-  (SELECT COUNT(*) FROM "Brand") AS brands,
-  (SELECT COUNT(*) FROM "Product") AS products,
-  (SELECT COUNT(*) FROM "Specification") AS specs,
+  (SELECT COUNT(*) FROM "Category" WHERE "deletedAt" IS NULL) AS categories,
+  (SELECT COUNT(*) FROM "Brand" WHERE "deletedAt" IS NULL) AS brands,
+  (SELECT COUNT(*) FROM "Product" WHERE "deletedAt" IS NULL) AS products,
   (SELECT COUNT(*) FROM "SiteSetting") AS settings,
   (SELECT COUNT(*) FROM "NavigationItem") AS nav;

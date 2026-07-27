@@ -1,7 +1,12 @@
--- Kameraz.com — Supabase SQL
+-- kamera.agency — Supabase SQL təlimatı
 --
--- SQL Editor-də SIRAYLA:
---   1) supabase/full-setup.sql   — cədvəllər + seed
---   2) supabase/03-storage.sql   — şəkil yükləmə (Cloudinary lazım deyil)
+-- Vacib:
+--   • Vercel / GitHub deploy DB-yə TOXUNMUR — məhsul, şəkil, parametr qalır.
+--   • full-setup.sql TƏHLÜKƏSİZDİR — mövcud datanı silmir (ON CONFLICT DO NOTHING).
+--   • DANGER-reset-all-data.sql — hər şeyi silir, yalnız bilərəkdən.
 --
--- Authentication → Users → admin@kameraz.com yarat (Auto Confirm)
+-- İlk qurulum / əlavə:
+--   1) full-setup.sql
+--   2) 03-storage.sql
+--   3) 04-whatsapp-branding.sql (istəyə bağlı)
+--   4) Authentication → Users → admin yarat
