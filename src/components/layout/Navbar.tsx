@@ -79,6 +79,17 @@ export function Navbar({
 
   const wa = getWhatsAppUrl(whatsappNumber, "Salam. Kameraz.com saytından yazıram.");
 
+  // Top pill: catalog links only (Hamısı + kateqoriyalar). Əlaqə stays in menu/dock.
+  const barItems = items.filter((item) => !item.href.startsWith("/elaqe"));
+
+  function isItemActive(href: string) {
+    if (href === "/avadanliqlar") {
+      // Only the full catalog — not product detail pages under /avadanliqlar/[slug]
+      return pathname === "/avadanliqlar";
+    }
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }
+
   const dock = [
     { href: "/", label: "Home", icon: Home, match: (p: string) => p === "/" },
     {
@@ -145,9 +156,9 @@ export function Navbar({
               });
             }}
             initial={false}
-            animate={{ maxWidth: compact ? 720 : 880 }}
+            animate={{ maxWidth: compact ? 860 : 1040 }}
             transition={{ type: "spring", stiffness: 260, damping: 28 }}
-            className="pointer-events-auto relative flex h-14 w-full items-center justify-between gap-3 overflow-hidden rounded-full border border-white/[0.08] bg-[#0c0c0e]/75 px-4 shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+            className="pointer-events-auto relative flex h-14 w-full items-center justify-between gap-2 overflow-hidden rounded-full border border-white/[0.08] bg-[#0c0c0e]/75 px-3 shadow-[0_8px_32px_rgba(0,0,0,0.45)] backdrop-blur-xl xl:px-4"
             style={{
               backgroundImage: `radial-gradient(280px circle at ${spot.x}% ${spot.y}%, rgba(200,255,0,0.07), transparent 40%)`,
             }}
@@ -167,18 +178,16 @@ export function Navbar({
               />
             </Link>
 
-            <div className="flex flex-1 items-center justify-center gap-0.5">
-              {items.slice(0, 5).map((item) => {
-                const active =
-                  pathname === item.href ||
-                  (item.href !== "/" && pathname.startsWith(item.href));
+            <div className="flex min-w-0 flex-1 items-center justify-center gap-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+              {barItems.map((item) => {
+                const active = isItemActive(item.href);
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
                     data-cursor="focus"
                     className={cn(
-                      "relative rounded-full px-3 py-1.5 text-[11px] uppercase tracking-[0.14em] transition-colors",
+                      "relative shrink-0 rounded-full px-2 py-1.5 text-[10px] uppercase tracking-[0.12em] transition-colors xl:px-2.5 xl:text-[11px] xl:tracking-[0.14em]",
                       active
                         ? "text-[var(--fg)]"
                         : "text-[var(--fg-muted)] hover:text-[var(--fg)]",
@@ -186,7 +195,7 @@ export function Navbar({
                   >
                     {item.label}
                     {active && (
-                      <span className="absolute inset-x-2.5 -bottom-0.5 h-px bg-[var(--accent)]" />
+                      <span className="absolute inset-x-2 -bottom-0.5 h-px bg-[var(--accent)]" />
                     )}
                   </Link>
                 );

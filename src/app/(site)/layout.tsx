@@ -35,7 +35,9 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   }
 
   const items = nav.map((n) => {
-    const cat = categories.find((c) => n.href.includes(c.slug));
+    const cat = categories.find(
+      (c) => n.href === `/kateqoriya/${c.slug}` || n.href.endsWith(`/${c.slug}`),
+    );
     return {
       label: n.label,
       href: n.href,

@@ -1,4 +1,5 @@
 import { getCachedCatalogPage, getCachedPublicBrands, getCachedPublicCategories } from "@/lib/public-data";
+import { getProducts } from "@/actions/products";
 import { ProductCard } from "@/components/products/ProductCard";
 import { CatalogClient } from "@/components/products/CatalogClient";
 import type { Metadata } from "next";
@@ -31,26 +32,53 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
     return Array.isArray(v) ? v[0] : v;
   };
 
-  // Cache only the common browse path (no free-text search / price filters)
   const q = get("q");
-  const hasHeavyFilters = Boolean(q || get("qiymetMin") || get("qiymetMax") || get("status") || get("secilmis") || get("yeni"));
+  const status = get("status");
+  const hasHeavyFilters = Boolean(
+    q || get("qiymetMin") || get("qiymetMax") || status || get("secilmis") || get("yeni"),
+  );
 
   const page = Number(get("sehife") || 1);
   const sort = get("sort") || "recommended";
+  const categorySlug = get("kateqoriya");
+  const brandSlug = get("marka");
 
   const [result, categories, brands] = await Promise.all([
     hasHeavyFilters
-      ? // fallback: still use cached catalog without search — search path uses same slim cache key with q ignored for speed
-        getCachedCatalogPage({
-          categorySlug: get("kateqoriya"),
-          brandSlug: get("marka"),
+      ? getProducts({
+          categorySlug,
+          brandSlug,
+          search: q,
+          status: status as never,
+          isFeatured: get("secilmis") === "1" || undefined,
+          isNew: get("yeni") === "1" || undefined,
+          minPrice: get("qiymetMin") ? Number(get("qiymetMin")) : undefined,
+          maxPrice: get("qiymetMax") ? Number(get("qiymetMax")) : undefined,
           sort,
           page,
           pageSize: 12,
-        })
+        }).then((r) => ({
+          items: r.items.map((p) => ({
+            id: String(p.id),
+            name: String(p.name),
+            slug: String(p.slug),
+            shortDesc: (p.shortDesc as string | null) ?? null,
+            dailyPrice: (p.dailyPrice as number | null) ?? null,
+            mainImage: (p.mainImage as string | null) ?? null,
+            status: String(p.status),
+            isFeatured: !!p.isFeatured,
+            isNew: !!p.isNew,
+            brand: p.brand ? { name: String((p.brand as { name: string }).name) } : null,
+            category: p.category ? { name: String((p.category as { name: string }).name) } : null,
+          })),
+          total: r.total,
+          page: r.page,
+          pageSize: r.pageSize,
+          totalPages: r.totalPages || 1,
+        }))
       : getCachedCatalogPage({
-          categorySlug: get("kateqoriya"),
-          brandSlug: get("marka"),
+          categorySlug,
+          brandSlug,
           sort,
           page,
           pageSize: 12,
