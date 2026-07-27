@@ -1,12 +1,3 @@
--- kamera.agency — Supabase SQL təlimatı
---
--- Vacib:
---   • Vercel / GitHub deploy DB-yə TOXUNMUR — məhsul, şəkil, parametr qalır.
---   • full-setup.sql TƏHLÜKƏSİZDİR — mövcud datanı silmir (ON CONFLICT DO NOTHING).
---   • DANGER-reset-all-data.sql — hər şeyi silir, yalnız bilərəkdən.
---
--- İlk qurulum / əlavə:
---   1) full-setup.sql
---   2) 03-storage.sql
---   3) 04-whatsapp-branding.sql (istəyə bağlı)
---   4) Authentication → Users → admin yarat
+﻿-- kamera.agency
+-- YALNIZ BU FAYLI İŞƏ SAL: supabase/FULL-COMPLETE.sql
+-- TRUNCATE olan köhnə skripti İŞƏ SALMA — datanı silir.
