@@ -1,0 +1,7 @@
+-- Kameraz.com — Supabase SQL
+--
+-- YALNIZ BİR FAYL İŞƏ SAL:
+--   supabase/full-setup.sql  → SQL Editor-də bütün məzmunu Run et
+--
+-- Köhnə 01-schema.sql / 02-seed-data.sql ayrı-ayrı işə salma.
+-- full-setup.sql cədvəl + təmiz seed birlikdə edir (FK xətası olmur).

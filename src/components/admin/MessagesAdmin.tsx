@@ -3,7 +3,7 @@
 import { useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { updateMessageStatus, deleteMessage } from "@/actions/admin";
-import type { MessageStatus } from "@prisma/client";
+import type { MessageStatus } from "@/types/database";
 
 type Msg = {
   id: string;

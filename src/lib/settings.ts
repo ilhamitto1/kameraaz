@@ -1,5 +1,10 @@
-import { prisma } from "@/lib/prisma";
+import { getAdminClient } from "@/lib/supabase/admin";
+import { nowIso } from "@/lib/supabase/utils";
 import type { SettingsShape } from "@/types";
+
+function settingRowId(key: string) {
+  return `set_${key}`;
+}
 
 export const DEFAULT_SETTINGS: SettingsShape = {
   siteName: "Kameraz.com",
@@ -38,24 +43,21 @@ function isCacheValid(): boolean {
   return cache !== null && Date.now() < cacheExpiresAt;
 }
 
-/** Fetch a single setting value by key, falling back to the default if unset. */
-export async function getSetting<K extends keyof SettingsShape>(
-  key: K,
-): Promise<SettingsShape[K]> {
+export async function getSetting<K extends keyof SettingsShape>(key: K): Promise<SettingsShape[K]> {
   const settings = await getSettings();
   return settings[key];
 }
 
-/** Fetch all settings merged with defaults (missing DB rows fall back to defaults). */
 export async function getSettings(): Promise<SettingsShape> {
   if (isCacheValid()) {
     return { ...DEFAULT_SETTINGS, ...cache } as SettingsShape;
   }
 
-  const rows = await prisma.siteSetting.findMany();
+  const sb = getAdminClient();
+  const { data: rows } = await sb.from("SiteSetting").select("key, value");
   const fromDb: Partial<SettingsShape> = {};
 
-  for (const row of rows) {
+  for (const row of rows || []) {
     const key = row.key as keyof SettingsShape;
     if (key in DEFAULT_SETTINGS) {
       (fromDb as Record<string, unknown>)[key] = row.value as SettingValue;
@@ -68,31 +70,39 @@ export async function getSettings(): Promise<SettingsShape> {
   return { ...DEFAULT_SETTINGS, ...fromDb };
 }
 
-/** Upsert a single setting value and invalidate the in-memory cache. */
 export async function updateSetting<K extends keyof SettingsShape>(
   key: K,
   value: SettingsShape[K],
 ): Promise<void> {
-  await prisma.siteSetting.upsert({
-    where: { key },
-    create: { key, value: value as never },
-    update: { value: value as never },
-  });
+  const sb = getAdminClient();
+  const { error } = await sb.from("SiteSetting").upsert(
+    {
+      id: settingRowId(String(key)),
+      key,
+      value: value as never,
+      updatedAt: nowIso(),
+    },
+    { onConflict: "key" },
+  );
+  if (error) throw new Error(error.message);
   invalidateSettingsCache();
 }
 
-/** Upsert many settings at once (e.g. from a settings form submit). */
 export async function updateSettings(partial: Partial<SettingsShape>): Promise<void> {
+  const sb = getAdminClient();
   const entries = Object.entries(partial) as [keyof SettingsShape, SettingValue][];
-  await prisma.$transaction(
-    entries.map(([key, value]) =>
-      prisma.siteSetting.upsert({
-        where: { key },
-        create: { key, value: value as never },
-        update: { value: value as never },
-      }),
-    ),
+  if (!entries.length) return;
+
+  const { error } = await sb.from("SiteSetting").upsert(
+    entries.map(([key, value]) => ({
+      id: settingRowId(String(key)),
+      key,
+      value: value as never,
+      updatedAt: nowIso(),
+    })),
+    { onConflict: "key" },
   );
+  if (error) throw new Error(error.message);
   invalidateSettingsCache();
 }
 

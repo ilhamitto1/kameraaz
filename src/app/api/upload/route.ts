@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 
-import { auth } from "@/lib/auth";
+import { requireAdmin } from "@/lib/auth";
 import { logActivity } from "@/lib/activity-log";
 import { UploadValidationError, uploadImage } from "@/lib/upload";
 import type { ApiResponse, UploadResult } from "@/types";
 
 export async function POST(request: Request): Promise<NextResponse<ApiResponse<UploadResult>>> {
-  const session = await auth();
-
-  if (!session?.user) {
+  let user;
+  try {
+    user = await requireAdmin();
+  } catch {
     return NextResponse.json({ success: false, error: "İcazə yoxdur" }, { status: 401 });
   }
 
@@ -26,7 +27,7 @@ export async function POST(request: Request): Promise<NextResponse<ApiResponse<U
     const result = await uploadImage(file);
 
     await logActivity({
-      userId: session.user.id,
+      userId: user.id,
       action: "UPLOAD",
       entity: "Media",
       details: { url: result.url, provider: result.provider },

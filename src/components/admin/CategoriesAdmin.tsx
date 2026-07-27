@@ -28,6 +28,7 @@ export function CategoriesAdmin({ initial }: { initial: Cat[] }) {
   const [description, setDescription] = useState("");
   const [showInNav, setShowInNav] = useState(true);
   const [isVisible, setIsVisible] = useState(true);
+  const [error, setError] = useState("");
 
   function reset() {
     setEditing(null);
@@ -36,10 +37,12 @@ export function CategoriesAdmin({ initial }: { initial: Cat[] }) {
     setDescription("");
     setShowInNav(true);
     setIsVisible(true);
+    setError("");
   }
 
   function save() {
     start(async () => {
+      setError("");
       const payload = {
         name,
         slug: slug || slugify(name),
@@ -48,10 +51,15 @@ export function CategoriesAdmin({ initial }: { initial: Cat[] }) {
         showInNav,
         isVisible,
         icon: editing?.icon || null,
-        image: null,
+        // image göndərmə — mövcud şəkil silinməsin
       };
-      if (editing) await updateCategory(editing.id, payload);
-      else await createCategory(payload);
+      const res = editing
+        ? await updateCategory(editing.id, payload)
+        : await createCategory(payload);
+      if (!res.success) {
+        setError(res.error || "Saxlanılmadı");
+        return;
+      }
       reset();
       router.refresh();
     });
@@ -92,7 +100,11 @@ export function CategoriesAdmin({ initial }: { initial: Cat[] }) {
                 onClick={() => {
                   if (confirm("Silinsin?"))
                     start(async () => {
-                      await deleteCategory(c.id);
+                      const res = await deleteCategory(c.id);
+                      if (!res.success) {
+                        alert(res.error || "Silinmədi");
+                        return;
+                      }
                       router.refresh();
                     });
                 }}
@@ -105,6 +117,7 @@ export function CategoriesAdmin({ initial }: { initial: Cat[] }) {
       </div>
       <div className="order-1 space-y-4 rounded-2xl border border-white/10 bg-[var(--bg-elevated)] p-4 sm:p-5 lg:order-2">
         <h2 className="display-font text-xl">{editing ? "Redaktə" : "Yeni kateqoriya"}</h2>
+        {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
         <div>
           <Label>Ad</Label>
           <Input

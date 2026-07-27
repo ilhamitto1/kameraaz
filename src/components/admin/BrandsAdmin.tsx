@@ -20,6 +20,7 @@ export function BrandsAdmin({ initial }: { initial: Brand[] }) {
   const [pending, start] = useTransition();
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
+  const [error, setError] = useState("");
 
   return (
     <div className="grid gap-6 lg:grid-cols-2 lg:gap-8">
@@ -41,7 +42,11 @@ export function BrandsAdmin({ initial }: { initial: Brand[] }) {
                 className="min-h-9 rounded-lg border border-white/10 px-3 touch-manipulation"
                 onClick={() =>
                   start(async () => {
-                    await updateBrand(b.id, { isActive: !b.isActive });
+                    const res = await updateBrand(b.id, { isActive: !b.isActive });
+                    if (!res.success) {
+                      alert(res.error || "Yenilənmədi");
+                      return;
+                    }
                     router.refresh();
                   })
                 }
@@ -54,7 +59,11 @@ export function BrandsAdmin({ initial }: { initial: Brand[] }) {
                 onClick={() => {
                   if (confirm("Silinsin?"))
                     start(async () => {
-                      await deleteBrand(b.id);
+                      const res = await deleteBrand(b.id);
+                      if (!res.success) {
+                        alert(res.error || "Silinmədi");
+                        return;
+                      }
                       router.refresh();
                     });
                 }}
@@ -67,6 +76,7 @@ export function BrandsAdmin({ initial }: { initial: Brand[] }) {
       </ul>
       <div className="order-1 space-y-4 rounded-2xl border border-white/10 bg-[var(--bg-elevated)] p-4 sm:p-5 lg:order-2">
         <h2 className="display-font text-xl">Yeni marka</h2>
+        {error && <p className="text-sm text-[var(--danger)]">{error}</p>}
         <div>
           <Label>Ad</Label>
           <Input
@@ -86,7 +96,12 @@ export function BrandsAdmin({ initial }: { initial: Brand[] }) {
           disabled={pending || !name}
           onClick={() =>
             start(async () => {
-              await createBrand({ name, slug, isActive: true, logo: null });
+              setError("");
+              const res = await createBrand({ name, slug, isActive: true, logo: null });
+              if (!res.success) {
+                setError(res.error || "Əlavə edilmədi");
+                return;
+              }
               setName("");
               setSlug("");
               router.refresh();

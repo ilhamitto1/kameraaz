@@ -1,20 +1,17 @@
-import { prisma } from "@/lib/prisma";
+import { getAdminClient } from "@/lib/supabase/admin";
+import { newId } from "@/lib/supabase/utils";
 import type { ActivityLogInput } from "@/types";
 
-/**
- * Records an admin activity event (create/update/delete/login, etc.) for auditing.
- * Never throws — logging failures should not break the primary operation.
- */
 export async function logActivity(input: ActivityLogInput): Promise<void> {
   try {
-    await prisma.activityLog.create({
-      data: {
-        userId: input.userId ?? null,
-        action: input.action,
-        entity: input.entity,
-        entityId: input.entityId ?? null,
-        details: input.details ? (input.details as never) : undefined,
-      },
+    const sb = getAdminClient();
+    await sb.from("ActivityLog").insert({
+      id: newId(),
+      userId: input.userId ?? null,
+      action: input.action,
+      entity: input.entity,
+      entityId: input.entityId ?? null,
+      details: input.details ?? null,
     });
   } catch (error) {
     console.error("[activity-log] Failed to record activity:", error);
@@ -29,30 +26,26 @@ export interface ActivityLogQuery {
   pageSize?: number;
 }
 
-/** Fetch recent activity log entries, most recent first, with basic filtering + pagination. */
 export async function getActivityLogs(query: ActivityLogQuery = {}) {
   const page = query.page && query.page > 0 ? query.page : 1;
   const pageSize = query.pageSize && query.pageSize > 0 ? query.pageSize : 25;
+  const sb = getAdminClient();
 
-  const where = {
-    ...(query.entity ? { entity: query.entity } : {}),
-    ...(query.entityId ? { entityId: query.entityId } : {}),
-    ...(query.userId ? { userId: query.userId } : {}),
-  };
+  let q = sb
+    .from("ActivityLog")
+    .select("*", { count: "exact" })
+    .order("createdAt", { ascending: false })
+    .range((page - 1) * pageSize, page * pageSize - 1);
 
-  const [items, total] = await Promise.all([
-    prisma.activityLog.findMany({
-      where,
-      orderBy: { createdAt: "desc" },
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-      include: { user: { select: { id: true, name: true, email: true } } },
-    }),
-    prisma.activityLog.count({ where }),
-  ]);
+  if (query.entity) q = q.eq("entity", query.entity);
+  if (query.entityId) q = q.eq("entityId", query.entityId);
+  if (query.userId) q = q.eq("userId", query.userId);
+
+  const { data: items, count } = await q;
+  const total = count || 0;
 
   return {
-    items,
+    items: items || [],
     total,
     page,
     pageSize,

@@ -1,24 +1,14 @@
 import { unstable_cache } from "next/cache";
-import { Prisma } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { getAdminClient } from "@/lib/supabase/admin";
+import { serializeRow } from "@/lib/supabase/utils";
 import { decimalToNumber } from "@/lib/utils";
 import type { CardProduct } from "@/components/products/ProductCard";
 
-/** Slim card payload — O(k) fields needed for list UI, not full product graph. */
-const cardSelect = {
-  id: true,
-  name: true,
-  slug: true,
-  shortDesc: true,
-  dailyPrice: true,
-  mainImage: true,
-  status: true,
-  isFeatured: true,
-  isNew: true,
-  updatedAt: true,
-  brand: { select: { name: true } },
-  category: { select: { name: true, slug: true } },
-} as const;
+const CARD_SELECT =
+  "id, name, slug, shortDesc, dailyPrice, mainImage, status, isFeatured, isNew, updatedAt, brand:Brand(name), category:Category(name, slug)";
+
+const CARD_SELECT_WITH_ACTIVE =
+  "id, name, slug, shortDesc, dailyPrice, mainImage, status, isFeatured, isNew, updatedAt, deletedAt, isActive, archivedAt, brand:Brand(name), category:Category(name, slug)";
 
 function serializeCard(p: {
   id: string;
@@ -48,21 +38,50 @@ function serializeCard(p: {
   };
 }
 
+function asCardProduct(row: unknown): CardProduct {
+  return serializeCard(row as Parameters<typeof serializeCard>[0]);
+}
+
+function isActiveProduct(row: {
+  deletedAt?: string | null;
+  isActive?: boolean;
+  archivedAt?: string | null;
+}) {
+  return !row.deletedAt && row.isActive === true && !row.archivedAt;
+}
+
+async function countActiveProductsByCategory(): Promise<Map<string, number>> {
+  const sb = getAdminClient();
+  const { data: rows } = await sb
+    .from("Product")
+    .select("categoryId")
+    .is("deletedAt", null)
+    .eq("isActive", true);
+
+  const map = new Map<string, number>();
+  for (const row of rows || []) {
+    map.set(row.categoryId, (map.get(row.categoryId) || 0) + 1);
+  }
+  return map;
+}
+
 export const getCachedPublicCategories = unstable_cache(
   async () => {
-    return prisma.category.findMany({
-      where: { deletedAt: null, isVisible: true },
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        description: true,
-        icon: true,
-        updatedAt: true,
-        _count: { select: { products: { where: { deletedAt: null, isActive: true } } } },
-      },
-      orderBy: { sortOrder: "asc" },
-    });
+    const sb = getAdminClient();
+    const [{ data: categories }, countMap] = await Promise.all([
+      sb
+        .from("Category")
+        .select("id, name, slug, description, icon, updatedAt")
+        .is("deletedAt", null)
+        .eq("isVisible", true)
+        .order("sortOrder", { ascending: true }),
+      countActiveProductsByCategory(),
+    ]);
+
+    return (categories || []).map((cat) => ({
+      ...cat,
+      _count: { products: countMap.get(cat.id) || 0 },
+    }));
   },
   ["public-categories-v2"],
   { revalidate: 120, tags: ["categories"] },
@@ -70,11 +89,14 @@ export const getCachedPublicCategories = unstable_cache(
 
 export const getCachedPublicBrands = unstable_cache(
   async () => {
-    return prisma.brand.findMany({
-      where: { deletedAt: null, isActive: true },
-      select: { id: true, name: true, slug: true },
-      orderBy: { name: "asc" },
-    });
+    const sb = getAdminClient();
+    const { data } = await sb
+      .from("Brand")
+      .select("id, name, slug")
+      .is("deletedAt", null)
+      .eq("isActive", true)
+      .order("name", { ascending: true });
+    return data || [];
   },
   ["public-brands-v2"],
   { revalidate: 120, tags: ["brands"] },
@@ -82,13 +104,18 @@ export const getCachedPublicBrands = unstable_cache(
 
 export const getCachedFeaturedProducts = unstable_cache(
   async (limit = 6) => {
-    const items = await prisma.product.findMany({
-      where: { deletedAt: null, isActive: true, archivedAt: null, isFeatured: true },
-      select: cardSelect,
-      orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
-      take: limit,
-    });
-    return items.map(serializeCard);
+    const sb = getAdminClient();
+    const { data: items } = await sb
+      .from("Product")
+      .select(CARD_SELECT)
+      .is("deletedAt", null)
+      .eq("isActive", true)
+      .is("archivedAt", null)
+      .eq("isFeatured", true)
+      .order("sortOrder", { ascending: true })
+      .order("createdAt", { ascending: false })
+      .limit(limit);
+    return (items || []).map(asCardProduct);
   },
   ["featured-products-v2"],
   { revalidate: 120, tags: ["products"] },
@@ -97,32 +124,38 @@ export const getCachedFeaturedProducts = unstable_cache(
 export function getCachedCategoryListing(slug: string) {
   return unstable_cache(
     async () => {
-      const cat = await prisma.category.findFirst({
-        where: { slug, deletedAt: null, isVisible: true },
-        select: {
-          id: true,
-          name: true,
-          slug: true,
-          description: true,
-          updatedAt: true,
-          _count: { select: { products: { where: { deletedAt: null, isActive: true } } } },
-        },
-      });
+      const sb = getAdminClient();
+      const { data: cat } = await sb
+        .from("Category")
+        .select("id, name, slug, description, updatedAt")
+        .eq("slug", slug)
+        .is("deletedAt", null)
+        .eq("isVisible", true)
+        .maybeSingle();
+
       if (!cat) return null;
 
-      const items = await prisma.product.findMany({
-        where: {
-          deletedAt: null,
-          isActive: true,
-          archivedAt: null,
-          categoryId: cat.id,
-        },
-        select: cardSelect,
-        orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }],
-        take: 48,
-      });
+      const [{ data: items }, countMap] = await Promise.all([
+        sb
+          .from("Product")
+          .select(CARD_SELECT)
+          .is("deletedAt", null)
+          .eq("isActive", true)
+          .is("archivedAt", null)
+          .eq("categoryId", cat.id)
+          .order("isFeatured", { ascending: false })
+          .order("sortOrder", { ascending: true })
+          .limit(48),
+        countActiveProductsByCategory(),
+      ]);
 
-      return { category: cat, products: items.map(serializeCard) };
+      return {
+        category: {
+          ...cat,
+          _count: { products: countMap.get(cat.id) || 0 },
+        },
+        products: (items || []).map(asCardProduct),
+      };
     },
     [`category-listing-${slug}`],
     { revalidate: 120, tags: ["products", "categories", `category-${slug}`] },
@@ -150,36 +183,57 @@ export function getCachedCatalogPage(input: {
 
   return unstable_cache(
     async () => {
-      const where: Prisma.ProductWhereInput = {
-        deletedAt: null,
-        isActive: true,
-        archivedAt: null,
-        ...(input.categorySlug
-          ? { category: { slug: input.categorySlug, deletedAt: null } }
-          : {}),
-        ...(input.brandSlug ? { brand: { slug: input.brandSlug, deletedAt: null } } : {}),
-      };
+      const sb = getAdminClient();
+      const categoryJoin = input.categorySlug
+        ? "category:Category!inner(name, slug)"
+        : "category:Category(name, slug)";
+      const brandJoin = input.brandSlug ? "brand:Brand!inner(name)" : "brand:Brand(name)";
+      const select = `id, name, slug, shortDesc, dailyPrice, mainImage, status, isFeatured, isNew, updatedAt, ${brandJoin}, ${categoryJoin}`;
+      const from = (page - 1) * pageSize;
+      const to = from + pageSize - 1;
 
-      let orderBy: Prisma.ProductOrderByWithRelationInput = { sortOrder: "asc" };
-      if (sort === "newest") orderBy = { createdAt: "desc" };
-      else if (sort === "price-asc") orderBy = { dailyPrice: "asc" };
-      else if (sort === "price-desc") orderBy = { dailyPrice: "desc" };
-      else if (sort === "popular") orderBy = { viewCount: "desc" };
-      else if (sort === "recommended") orderBy = { isFeatured: "desc" };
+      let countQuery = sb.from("Product").select(select, { count: "exact", head: true });
+      let dataQuery = sb.from("Product").select(select);
 
-      const [total, items] = await Promise.all([
-        prisma.product.count({ where }),
-        prisma.product.findMany({
-          where,
-          select: cardSelect,
-          orderBy,
-          skip: (page - 1) * pageSize,
-          take: pageSize,
-        }),
-      ]);
+      countQuery = countQuery
+        .is("deletedAt", null)
+        .eq("isActive", true)
+        .is("archivedAt", null);
+      dataQuery = dataQuery
+        .is("deletedAt", null)
+        .eq("isActive", true)
+        .is("archivedAt", null);
+
+      if (input.categorySlug) {
+        countQuery = countQuery.eq("category.slug", input.categorySlug).is("category.deletedAt", null);
+        dataQuery = dataQuery.eq("category.slug", input.categorySlug).is("category.deletedAt", null);
+      }
+      if (input.brandSlug) {
+        countQuery = countQuery.eq("brand.slug", input.brandSlug).is("brand.deletedAt", null);
+        dataQuery = dataQuery.eq("brand.slug", input.brandSlug).is("brand.deletedAt", null);
+      }
+
+      if (sort === "newest") {
+        dataQuery = dataQuery.order("createdAt", { ascending: false });
+      } else if (sort === "price-asc") {
+        dataQuery = dataQuery.order("dailyPrice", { ascending: true });
+      } else if (sort === "price-desc") {
+        dataQuery = dataQuery.order("dailyPrice", { ascending: false });
+      } else if (sort === "popular") {
+        dataQuery = dataQuery.order("viewCount", { ascending: false });
+      } else if (sort === "recommended") {
+        dataQuery = dataQuery.order("isFeatured", { ascending: false });
+      } else {
+        dataQuery = dataQuery.order("sortOrder", { ascending: true });
+      }
+
+      dataQuery = dataQuery.range(from, to);
+
+      const [{ count }, { data: items }] = await Promise.all([countQuery, dataQuery]);
+      const total = count || 0;
 
       return {
-        items: items.map(serializeCard),
+        items: (items || []).map(asCardProduct),
         total,
         page,
         pageSize,
@@ -194,65 +248,70 @@ export function getCachedCatalogPage(input: {
 export function getCachedProductBySlug(slug: string) {
   return unstable_cache(
     async () => {
-      const product = await prisma.product.findFirst({
-        where: { slug, deletedAt: null, isActive: true },
-        include: {
-          category: { select: { id: true, name: true, slug: true } },
-          brand: { select: { id: true, name: true, slug: true } },
-          images: { orderBy: { sortOrder: "asc" }, select: { id: true, url: true, alt: true } },
-          specifications: {
-            orderBy: { sortOrder: "asc" },
-            select: { id: true, label: true, value: true },
-          },
-          bookingDates: {
-            orderBy: { startDate: "asc" },
-            select: { id: true, startDate: true, endDate: true },
-          },
-          accessories: {
-            where: {
-              accessory: { deletedAt: null, isActive: true, archivedAt: null },
-            },
-            include: {
-              accessory: { select: cardSelect },
-            },
-          },
-          relatedFrom: {
-            where: {
-              relatedProduct: { deletedAt: null, isActive: true, archivedAt: null },
-            },
-            include: {
-              relatedProduct: { select: cardSelect },
-            },
-          },
-        },
-      });
+      const sb = getAdminClient();
+      const { data: product } = await sb
+        .from("Product")
+        .select(
+          `
+          *,
+          category:Category(id, name, slug),
+          brand:Brand(id, name, slug),
+          images:ProductImage(id, url, alt, sortOrder),
+          specifications:Specification(id, label, value, sortOrder),
+          bookingDates:BookingDate(id, startDate, endDate),
+          accessories:ProductAccessory(
+            accessory:Product(${CARD_SELECT_WITH_ACTIVE})
+          ),
+          relatedFrom:RelatedProduct(
+            relatedProduct:Product(${CARD_SELECT_WITH_ACTIVE})
+          )
+        `,
+        )
+        .eq("slug", slug)
+        .is("deletedAt", null)
+        .eq("isActive", true)
+        .maybeSingle();
+
       if (!product) return null;
 
-      const serialized = JSON.parse(
-        JSON.stringify(product, (_k, value) => {
-          if (
-            value !== null &&
-            typeof value === "object" &&
-            typeof (value as { toNumber?: unknown }).toNumber === "function"
-          ) {
-            return Number((value as { toNumber: () => number }).toNumber());
-          }
-          return value;
-        }),
-      ) as Record<string, unknown>;
+      const serialized = serializeRow(product) as Record<string, unknown>;
+
+      if (Array.isArray(serialized.images)) {
+        serialized.images = [...(serialized.images as { sortOrder?: number }[])].sort(
+          (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+        );
+      }
+      if (Array.isArray(serialized.specifications)) {
+        serialized.specifications = [...(serialized.specifications as { sortOrder?: number }[])].sort(
+          (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
+        );
+      }
+      if (Array.isArray(serialized.bookingDates)) {
+        serialized.bookingDates = [...(serialized.bookingDates as { startDate?: string }[])].sort(
+          (a, b) => (a.startDate || "").localeCompare(b.startDate || ""),
+        );
+      }
 
       const accessories = (
-        (product.accessories as { accessory: Parameters<typeof serializeCard>[0] }[]) || []
+        (product.accessories as { accessory: Parameters<typeof serializeCard>[0] & {
+          deletedAt?: string | null;
+          isActive?: boolean;
+          archivedAt?: string | null;
+        } }[]) || []
       )
         .map((a) => a.accessory)
-        .filter(Boolean)
+        .filter((a) => a && isActiveProduct(a))
         .map(serializeCard);
 
       const relatedProducts = (
-        (product.relatedFrom as { relatedProduct: Parameters<typeof serializeCard>[0] }[]) || []
+        (product.relatedFrom as { relatedProduct: Parameters<typeof serializeCard>[0] & {
+          deletedAt?: string | null;
+          isActive?: boolean;
+          archivedAt?: string | null;
+        } }[]) || []
       )
         .map((r) => r.relatedProduct)
-        .filter(Boolean)
+        .filter((r) => r && isActiveProduct(r))
         .map(serializeCard);
 
       return { ...serialized, accessories, relatedProducts } as Record<string, unknown>;
@@ -265,19 +324,22 @@ export function getCachedProductBySlug(slug: string) {
 export function getCachedRelatedByCategory(categorySlug: string, excludeId: string, take = 4) {
   return unstable_cache(
     async () => {
-      const items = await prisma.product.findMany({
-        where: {
-          deletedAt: null,
-          isActive: true,
-          archivedAt: null,
-          category: { slug: categorySlug },
-          NOT: { id: excludeId },
-        },
-        select: cardSelect,
-        orderBy: [{ isFeatured: "desc" }, { sortOrder: "asc" }],
-        take,
-      });
-      return items.map(serializeCard);
+      const sb = getAdminClient();
+      const { data: items } = await sb
+        .from("Product")
+        .select(
+          "id, name, slug, shortDesc, dailyPrice, mainImage, status, isFeatured, isNew, updatedAt, brand:Brand(name), category:Category!inner(name, slug)",
+        )
+        .is("deletedAt", null)
+        .eq("isActive", true)
+        .is("archivedAt", null)
+        .eq("category.slug", categorySlug)
+        .neq("id", excludeId)
+        .order("isFeatured", { ascending: false })
+        .order("sortOrder", { ascending: true })
+        .limit(take);
+
+      return (items || []).map(asCardProduct);
     },
     [`related-${categorySlug}-${excludeId}`],
     { revalidate: 120, tags: ["products"] },
@@ -285,15 +347,21 @@ export function getCachedRelatedByCategory(categorySlug: string, excludeId: stri
 }
 
 export async function getAllCategorySlugs() {
-  return prisma.category.findMany({
-    where: { deletedAt: null, isVisible: true },
-    select: { slug: true },
-  });
+  const sb = getAdminClient();
+  const { data } = await sb
+    .from("Category")
+    .select("slug")
+    .is("deletedAt", null)
+    .eq("isVisible", true);
+  return data || [];
 }
 
 export async function getAllProductSlugs() {
-  return prisma.product.findMany({
-    where: { deletedAt: null, isActive: true },
-    select: { slug: true },
-  });
+  const sb = getAdminClient();
+  const { data } = await sb
+    .from("Product")
+    .select("slug")
+    .is("deletedAt", null)
+    .eq("isActive", true);
+  return data || [];
 }

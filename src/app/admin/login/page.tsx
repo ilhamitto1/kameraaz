@@ -1,8 +1,8 @@
 "use client";
 
-import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { loginAction } from "@/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Input, Label } from "@/components/ui/Form";
 
@@ -17,10 +17,10 @@ export default function AdminLoginPage() {
     e.preventDefault();
     setLoading(true);
     setError("");
-    const res = await signIn("credentials", { email, password, redirect: false });
+    const res = await loginAction(email, password);
     setLoading(false);
-    if (res?.error) {
-      setError("Email və ya şifrə yanlışdır");
+    if (!res.success) {
+      setError(res.error || "Email və ya şifrə yanlışdır");
       return;
     }
     router.push("/admin");
@@ -41,6 +41,9 @@ export default function AdminLoginPage() {
       >
         <p className="mono text-xs text-[var(--accent)]">ADMIN</p>
         <h1 className="display-font mt-2 text-2xl sm:text-3xl">Kameraz Panel</h1>
+        <p className="mt-2 text-sm text-[var(--fg-muted)]">
+          Supabase Authentication ilə daxil ol
+        </p>
         <div className="mt-8 space-y-4">
           <div>
             <Label htmlFor="email">Email</Label>

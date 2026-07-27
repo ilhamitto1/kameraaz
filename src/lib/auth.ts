@@ -1,42 +1,52 @@
-import NextAuth from "next-auth";
-import Credentials from "next-auth/providers/credentials";
-import bcrypt from "bcryptjs";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { getAdminClient } from "@/lib/supabase/admin";
 
-import { authConfig } from "@/lib/auth.config";
-import { prisma } from "@/lib/prisma";
-import { loginSchema } from "@/lib/validations/login";
+export type SessionUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+};
 
-export const { auth, signIn, signOut, handlers } = NextAuth({
-  ...authConfig,
-  secret: process.env.AUTH_SECRET,
-  providers: [
-    Credentials({
-      name: "credentials",
-      credentials: {
-        email: { label: "Email", type: "email" },
-        password: { label: "Şifrə", type: "password" },
-      },
-      async authorize(credentials) {
-        const parsed = loginSchema.safeParse(credentials);
-        if (!parsed.success) return null;
+export async function getSession() {
+  const supabase = await createSupabaseServerClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return null;
 
-        const { email, password } = parsed.data;
+  let name = (user.user_metadata?.name as string) || user.email || "Admin";
+  let role = (user.app_metadata?.role as string) || "ADMIN";
 
-        const user = await prisma.user.findUnique({
-          where: { email: email.toLowerCase() },
-        });
-        if (!user) return null;
+  try {
+    const sb = getAdminClient();
+    const { data: profile } = await sb
+      .from("profiles")
+      .select("name, role")
+      .eq("id", user.id)
+      .maybeSingle();
+    if (profile?.name) name = profile.name;
+    if (profile?.role) role = profile.role;
+  } catch {
+    /* profiles cədvəli yoxdursa default role istifadə et */
+  }
 
-        const isValid = await bcrypt.compare(password, user.passwordHash);
-        if (!isValid) return null;
+  return {
+    user: {
+      id: user.id,
+      email: user.email || "",
+      name,
+      role,
+    } satisfies SessionUser,
+  };
+}
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        };
-      },
-    }),
-  ],
-});
+export async function requireAdmin() {
+  const session = await getSession();
+  if (!session?.user?.id) throw new Error("Unauthorized");
+  if (session.user.role !== "ADMIN") throw new Error("Forbidden");
+  return session.user;
+}
+
+/** @deprecated use getSession */
+export const auth = getSession;

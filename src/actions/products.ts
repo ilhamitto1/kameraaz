@@ -1,44 +1,72 @@
 "use server";
 
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
+import { getAdminClient } from "@/lib/supabase/admin";
+import { newId, nowIso, serializeRow } from "@/lib/supabase/utils";
 import { logActivity } from "@/lib/activity-log";
 import { productSchema } from "@/lib/validations/product";
 import { slugify } from "@/lib/utils";
-import { AvailabilityStatus, Prisma } from "@prisma/client";
+import type { AvailabilityStatus, PriceType } from "@/types/database";
 import { revalidatePath, revalidateTag } from "next/cache";
 
-async function requireAdmin() {
-  const session = await auth();
-  if (!session?.user?.id) throw new Error("Unauthorized");
-  return session.user;
-}
+const PRODUCT_LIST_SELECT =
+  "*, brand:Brand(*), category:Category(*), images:ProductImage(*), specifications:Specification(*)";
+
+const PRODUCT_DETAIL_SELECT = `
+  *,
+  brand:Brand(*),
+  category:Category(*),
+  images:ProductImage(*),
+  specifications:Specification(*),
+  bookingDates:BookingDate(*),
+  accessories:ProductAccessory(
+    *,
+    accessory:Product(
+      *,
+      brand:Brand(*),
+      category:Category(*),
+      images:ProductImage(*)
+    )
+  ),
+  relatedFrom:RelatedProduct(
+    *,
+    relatedProduct:Product(
+      *,
+      brand:Brand(*),
+      category:Category(*),
+      images:ProductImage(*)
+    )
+  )
+`;
 
 function serializeProduct(p: Record<string, unknown>) {
-  // Deep-convert Prisma Decimal / nested relations for Client Components
-  return JSON.parse(
-    JSON.stringify(p, (_key, value) => {
-      if (
-        value !== null &&
-        typeof value === "object" &&
-        typeof (value as { toNumber?: unknown }).toNumber === "function"
-      ) {
-        return Number((value as { toNumber: () => number }).toNumber());
-      }
-      if (typeof value === "bigint") return Number(value);
-      return value;
-    }),
-  ) as Record<string, unknown>;
+  return serializeRow(p) as Record<string, unknown>;
 }
 
-const productInclude = {
-  category: true,
-  brand: true,
-  images: { orderBy: { sortOrder: "asc" as const } },
-  specifications: { orderBy: { sortOrder: "asc" as const } },
-};
+function sortBySortOrder<T extends { sortOrder?: number | null }>(items: T[] | null | undefined): T[] {
+  return [...(items || [])].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+}
 
-export async function getProducts(filters: {
+function normalizeListProduct(row: Record<string, unknown>) {
+  const p = serializeProduct(row);
+  if (Array.isArray(p.images)) p.images = sortBySortOrder(p.images as { sortOrder?: number | null }[]);
+  if (Array.isArray(p.specifications)) {
+    p.specifications = sortBySortOrder(p.specifications as { sortOrder?: number | null }[]);
+  }
+  return p;
+}
+
+function normalizeDetailProduct(row: Record<string, unknown>) {
+  const p = normalizeListProduct(row);
+  if (Array.isArray(p.bookingDates)) {
+    p.bookingDates = [...(p.bookingDates as { startDate?: string }[])].sort((a, b) =>
+      (a.startDate || "").localeCompare(b.startDate || ""),
+    );
+  }
+  return p;
+}
+
+type ProductFilters = {
   categorySlug?: string;
   brandSlug?: string;
   status?: AvailabilityStatus;
@@ -51,66 +79,111 @@ export async function getProducts(filters: {
   page?: number;
   pageSize?: number;
   admin?: boolean;
-}) {
+};
+
+function buildListSelect(filters: ProductFilters) {
+  const categoryJoin = filters.categorySlug ? "category:Category!inner(*)" : "category:Category(*)";
+  const brandJoin = filters.brandSlug ? "brand:Brand!inner(*)" : "brand:Brand(*)";
+  return `*, ${brandJoin}, ${categoryJoin}, images:ProductImage(*), specifications:Specification(*)`;
+}
+
+async function resolveSearchBrandIds(search?: string): Promise<string[]> {
+  if (!search?.trim()) return [];
+  const term = `%${search.trim()}%`;
+  const sb = getAdminClient();
+  const { data: brandMatches } = await sb
+    .from("Brand")
+    .select("id")
+    .ilike("name", term)
+    .is("deletedAt", null);
+  return (brandMatches || []).map((b) => b.id as string);
+}
+
+function applyProductFilters(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  baseQuery: any,
+  filters: ProductFilters,
+  searchBrandIds: string[] = [],
+) {
+  // Never await the builder — Supabase thenables execute on await.
+  let query = baseQuery.is("deletedAt", null);
+
+  if (!filters.admin) {
+    query = query.eq("isActive", true).is("archivedAt", null);
+  }
+  if (filters.categorySlug) {
+    query = query.eq("category.slug", filters.categorySlug).is("category.deletedAt", null);
+  }
+  if (filters.brandSlug) {
+    query = query.eq("brand.slug", filters.brandSlug).is("brand.deletedAt", null);
+  }
+  if (filters.status) query = query.eq("status", filters.status);
+  if (filters.isFeatured) query = query.eq("isFeatured", true);
+  if (filters.isNew) query = query.eq("isNew", true);
+  if (filters.minPrice !== undefined) query = query.gte("dailyPrice", filters.minPrice);
+  if (filters.maxPrice !== undefined) query = query.lte("dailyPrice", filters.maxPrice);
+
+  if (filters.search) {
+    const term = `%${filters.search.trim()}%`;
+    const orParts = [`name.ilike.${term}`, `shortDesc.ilike.${term}`];
+    if (searchBrandIds.length) {
+      orParts.push(`brandId.in.(${searchBrandIds.join(",")})`);
+    }
+    query = query.or(orParts.join(","));
+  }
+
+  return query;
+}
+
+function applyProductSort(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  query: any,
+  sort?: string,
+) {
+  switch (sort) {
+    case "newest":
+      return query.order("createdAt", { ascending: false });
+    case "price-asc":
+      return query.order("dailyPrice", { ascending: true });
+    case "price-desc":
+      return query.order("dailyPrice", { ascending: false });
+    case "popular":
+      return query.order("viewCount", { ascending: false });
+    case "recommended":
+      return query.order("isFeatured", { ascending: false });
+    default:
+      return query.order("sortOrder", { ascending: true });
+  }
+}
+
+export async function getProducts(filters: ProductFilters) {
   const page = filters.page || 1;
   const pageSize = filters.pageSize || 12;
-  const where: Prisma.ProductWhereInput = {
-    deletedAt: null,
-    ...(filters.admin ? {} : { isActive: true, archivedAt: null }),
-  };
+  const sb = getAdminClient();
+  const select = buildListSelect(filters);
+  const from = (page - 1) * pageSize;
+  const to = from + pageSize - 1;
 
-  if (filters.categorySlug) where.category = { slug: filters.categorySlug, deletedAt: null };
-  if (filters.brandSlug) where.brand = { slug: filters.brandSlug, deletedAt: null };
-  if (filters.status) where.status = filters.status;
-  if (filters.isFeatured) where.isFeatured = true;
-  if (filters.isNew) where.isNew = true;
-  if (filters.search) {
-    where.OR = [
-      { name: { contains: filters.search, mode: "insensitive" } },
-      { shortDesc: { contains: filters.search, mode: "insensitive" } },
-      { brand: { name: { contains: filters.search, mode: "insensitive" } } },
-    ];
-  }
-  if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
-    where.dailyPrice = {};
-    if (filters.minPrice !== undefined) where.dailyPrice.gte = filters.minPrice;
-    if (filters.maxPrice !== undefined) where.dailyPrice.lte = filters.maxPrice;
-  }
+  const searchBrandIds = await resolveSearchBrandIds(filters.search);
 
-  let orderBy: Prisma.ProductOrderByWithRelationInput = { sortOrder: "asc" };
-  switch (filters.sort) {
-    case "newest":
-      orderBy = { createdAt: "desc" };
-      break;
-    case "price-asc":
-      orderBy = { dailyPrice: "asc" };
-      break;
-    case "price-desc":
-      orderBy = { dailyPrice: "desc" };
-      break;
-    case "popular":
-      orderBy = { viewCount: "desc" };
-      break;
-    case "recommended":
-      orderBy = { isFeatured: "desc" };
-      break;
-    default:
-      orderBy = { sortOrder: "asc" };
-  }
+  const countQuery = applyProductFilters(
+    sb.from("Product").select(select, { count: "exact", head: true }),
+    filters,
+    searchBrandIds,
+  );
+  const dataQuery = applyProductSort(
+    applyProductFilters(sb.from("Product").select(select), filters, searchBrandIds),
+    filters.sort,
+  ).range(from, to);
 
-  const [total, items] = await Promise.all([
-    prisma.product.count({ where }),
-    prisma.product.findMany({
-      where,
-      include: productInclude,
-      orderBy,
-      skip: (page - 1) * pageSize,
-      take: pageSize,
-    }),
-  ]);
+  const [{ count }, { data, error }] = await Promise.all([countQuery, dataQuery]);
+  if (error) throw error;
+
+  const total = count || 0;
+  const items = (data || []).map((p) => normalizeListProduct(p as unknown as Record<string, unknown>));
 
   return {
-    items: items.map((p) => serializeProduct(p as never)),
+    items,
     total,
     page,
     pageSize,
@@ -119,62 +192,65 @@ export async function getProducts(filters: {
 }
 
 export async function getProductBySlug(slug: string) {
-  const product = await prisma.product.findFirst({
-    where: { slug, deletedAt: null, isActive: true },
-    include: {
-      ...productInclude,
-      bookingDates: true,
-      accessories: {
-        include: {
-          accessory: { include: { brand: true, category: true, images: true } },
-        },
-      },
-      relatedFrom: {
-        include: {
-          relatedProduct: { include: { brand: true, category: true, images: true } },
-        },
-      },
-    },
-  });
+  const sb = getAdminClient();
+  const { data: product, error } = await sb
+    .from("Product")
+    .select(PRODUCT_DETAIL_SELECT)
+    .eq("slug", slug)
+    .is("deletedAt", null)
+    .eq("isActive", true)
+    .maybeSingle();
+
+  if (error) throw error;
   if (!product) return null;
-  return serializeProduct(product as never);
+  return normalizeDetailProduct(product as unknown as Record<string, unknown>);
 }
 
 export async function getProductPickerList(excludeId?: string) {
   await requireAdmin();
-  const items = await prisma.product.findMany({
-    where: {
-      deletedAt: null,
-      ...(excludeId ? { NOT: { id: excludeId } } : {}),
-    },
-    select: {
-      id: true,
-      name: true,
-      category: { select: { name: true } },
-    },
-    orderBy: [{ category: { sortOrder: "asc" } }, { name: "asc" }],
-    take: 500,
-  });
-  return items.map((p) => ({
-    id: p.id,
-    name: p.name,
-    categoryName: p.category?.name || "—",
-  }));
+  const sb = getAdminClient();
+  let query = sb
+    .from("Product")
+    .select("id, name, category:Category(name, sortOrder)")
+    .is("deletedAt", null)
+    .limit(500);
+
+  if (excludeId) query = query.neq("id", excludeId);
+
+  const { data, error } = await query;
+  if (error) throw error;
+
+  return [...(data || [])]
+    .sort((a, b) => {
+      const catA = a.category as { sortOrder?: number; name?: string } | null;
+      const catB = b.category as { sortOrder?: number; name?: string } | null;
+      const orderA = catA?.sortOrder ?? 0;
+      const orderB = catB?.sortOrder ?? 0;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.name.localeCompare(b.name);
+    })
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      categoryName: (p.category as { name?: string } | null)?.name || "—",
+    }));
 }
 
 export async function getProductById(id: string) {
   await requireAdmin();
-  const product = await prisma.product.findFirst({
-    where: { id, deletedAt: null },
-    include: {
-      ...productInclude,
-      accessories: true,
-      relatedFrom: true,
-      bookingDates: true,
-    },
-  });
+  const sb = getAdminClient();
+  const { data: product, error } = await sb
+    .from("Product")
+    .select(
+      `${PRODUCT_LIST_SELECT}, accessories:ProductAccessory(*), relatedFrom:RelatedProduct(*), bookingDates:BookingDate(*)`,
+    )
+    .eq("id", id)
+    .is("deletedAt", null)
+    .maybeSingle();
+
+  if (error) throw error;
   if (!product) return null;
-  return serializeProduct(product as never);
+  return normalizeDetailProduct(product as unknown as Record<string, unknown>);
 }
 
 export async function createProduct(raw: unknown) {
@@ -192,12 +268,22 @@ export async function createProduct(raw: unknown) {
   }
   const data = parsed.data;
   const slug = data.slug || slugify(data.name);
+  const sb = getAdminClient();
 
-  const exists = await prisma.product.findUnique({ where: { slug } });
+  const { data: exists } = await sb
+    .from("Product")
+    .select("id")
+    .eq("slug", slug)
+    .is("deletedAt", null)
+    .maybeSingle();
   if (exists) return { success: false as const, error: "Bu adda mal artıq var. Adı bir az dəyiş." };
 
-  const product = await prisma.product.create({
-    data: {
+  const id = newId();
+  const now = nowIso();
+  const { data: product, error } = await sb
+    .from("Product")
+    .insert({
+      id,
       name: data.name,
       slug,
       sku: data.sku || null,
@@ -223,35 +309,60 @@ export async function createProduct(raw: unknown) {
       seoDescription: data.seoDescription || null,
       categoryId: data.categoryId,
       brandId: data.brandId,
-      images: {
-        create: data.images.map((img, i) => ({
-          url: img.url,
-          alt: img.alt || data.name,
-          sortOrder: img.sortOrder ?? i,
-        })),
-      },
-      specifications: {
-        create: data.specifications.map((s, i) => ({
-          label: s.label,
-          value: s.value,
-          sortOrder: s.sortOrder ?? i,
-        })),
-      },
-    },
-  });
+      createdAt: now,
+      updatedAt: now,
+    })
+    .select()
+    .single();
+
+  if (error) return { success: false as const, error: error.message };
+
+  if (data.images.length) {
+    const { error: imgErr } = await sb.from("ProductImage").insert(
+      data.images.map((img, i) => ({
+        id: newId(),
+        productId: id,
+        url: img.url,
+        alt: img.alt || data.name,
+        sortOrder: img.sortOrder ?? i,
+      })),
+    );
+    if (imgErr) return { success: false as const, error: imgErr.message };
+  }
+
+  if (data.specifications.length) {
+    const { error: specErr } = await sb.from("Specification").insert(
+      data.specifications.map((s, i) => ({
+        id: newId(),
+        productId: id,
+        label: s.label,
+        value: s.value,
+        sortOrder: s.sortOrder ?? i,
+      })),
+    );
+    if (specErr) return { success: false as const, error: specErr.message };
+  }
 
   if (data.accessoryIds.length) {
-    await prisma.productAccessory.createMany({
-      data: data.accessoryIds.map((accessoryId) => ({ productId: product.id, accessoryId })),
-    });
+    const { error: accErr } = await sb.from("ProductAccessory").insert(
+      data.accessoryIds.map((accessoryId) => ({
+        id: newId(),
+        productId: id,
+        accessoryId,
+      })),
+    );
+    if (accErr) return { success: false as const, error: accErr.message };
   }
+
   if (data.relatedProductIds.length) {
-    await prisma.relatedProduct.createMany({
-      data: data.relatedProductIds.map((relatedProductId) => ({
-        productId: product.id,
+    const { error: relErr } = await sb.from("RelatedProduct").insert(
+      data.relatedProductIds.map((relatedProductId) => ({
+        id: newId(),
+        productId: id,
         relatedProductId,
       })),
-    });
+    );
+    if (relErr) return { success: false as const, error: relErr.message };
   }
 
   await logActivity({
@@ -283,88 +394,114 @@ export async function updateProduct(id: string, raw: unknown) {
     };
   }
   const data = parsed.data;
+  const sb = getAdminClient();
 
-  const existing = await prisma.product.findFirst({ where: { id, deletedAt: null } });
+  const { data: existing } = await sb
+    .from("Product")
+    .select("id, slug, name")
+    .eq("id", id)
+    .is("deletedAt", null)
+    .maybeSingle();
+
   if (!existing) return { success: false as const, error: "Məhsul tapılmadı" };
 
   if (data.slug && data.slug !== existing.slug) {
-    const clash = await prisma.product.findUnique({ where: { slug: data.slug } });
+    const { data: clash } = await sb
+      .from("Product")
+      .select("id")
+      .eq("slug", data.slug)
+      .is("deletedAt", null)
+      .maybeSingle();
     if (clash) return { success: false as const, error: "Bu slug artıq mövcuddur" };
   }
 
-  await prisma.product.update({
-    where: { id },
-    data: {
-      ...(data.name !== undefined && { name: data.name }),
-      ...(data.slug !== undefined && { slug: data.slug }),
-      ...(data.sku !== undefined && { sku: data.sku || null }),
-      ...(data.shortDesc !== undefined && { shortDesc: data.shortDesc || null }),
-      ...(data.longDesc !== undefined && { longDesc: data.longDesc || null }),
-      ...(data.dailyPrice !== undefined && { dailyPrice: data.dailyPrice }),
-      ...(data.weeklyPrice !== undefined && { weeklyPrice: data.weeklyPrice }),
-      ...(data.monthlyPrice !== undefined && { monthlyPrice: data.monthlyPrice }),
-      ...(data.deposit !== undefined && { deposit: data.deposit }),
-      ...(data.showDailyPrice !== undefined && { showDailyPrice: data.showDailyPrice }),
-      ...(data.showWeeklyPrice !== undefined && { showWeeklyPrice: data.showWeeklyPrice }),
-      ...(data.showMonthlyPrice !== undefined && { showMonthlyPrice: data.showMonthlyPrice }),
-      ...(data.mainImage !== undefined && { mainImage: data.mainImage || null }),
-      ...(data.status !== undefined && { status: data.status }),
-      ...(data.badge !== undefined && { badge: data.badge || null }),
-      ...(data.sortOrder !== undefined && { sortOrder: data.sortOrder }),
-      ...(data.isFeatured !== undefined && { isFeatured: data.isFeatured }),
-      ...(data.isActive !== undefined && { isActive: data.isActive }),
-      ...(data.isNew !== undefined && { isNew: data.isNew }),
-      ...(data.includedItems !== undefined && { includedItems: data.includedItems }),
-      ...(data.usageRules !== undefined && { usageRules: data.usageRules || null }),
-      ...(data.seoTitle !== undefined && { seoTitle: data.seoTitle || null }),
-      ...(data.seoDescription !== undefined && { seoDescription: data.seoDescription || null }),
-      ...(data.categoryId !== undefined && { categoryId: data.categoryId }),
-      ...(data.brandId !== undefined && { brandId: data.brandId }),
-    },
-  });
+  const patch: Record<string, unknown> = { updatedAt: nowIso() };
+  if (data.name !== undefined) patch.name = data.name;
+  if (data.slug !== undefined) patch.slug = data.slug;
+  if (data.sku !== undefined) patch.sku = data.sku || null;
+  if (data.shortDesc !== undefined) patch.shortDesc = data.shortDesc || null;
+  if (data.longDesc !== undefined) patch.longDesc = data.longDesc || null;
+  if (data.dailyPrice !== undefined) patch.dailyPrice = data.dailyPrice;
+  if (data.weeklyPrice !== undefined) patch.weeklyPrice = data.weeklyPrice;
+  if (data.monthlyPrice !== undefined) patch.monthlyPrice = data.monthlyPrice;
+  if (data.deposit !== undefined) patch.deposit = data.deposit;
+  if (data.showDailyPrice !== undefined) patch.showDailyPrice = data.showDailyPrice;
+  if (data.showWeeklyPrice !== undefined) patch.showWeeklyPrice = data.showWeeklyPrice;
+  if (data.showMonthlyPrice !== undefined) patch.showMonthlyPrice = data.showMonthlyPrice;
+  if (data.mainImage !== undefined) patch.mainImage = data.mainImage || null;
+  if (data.status !== undefined) patch.status = data.status;
+  if (data.badge !== undefined) patch.badge = data.badge || null;
+  if (data.sortOrder !== undefined) patch.sortOrder = data.sortOrder;
+  if (data.isFeatured !== undefined) patch.isFeatured = data.isFeatured;
+  if (data.isActive !== undefined) patch.isActive = data.isActive;
+  if (data.isNew !== undefined) patch.isNew = data.isNew;
+  if (data.includedItems !== undefined) patch.includedItems = data.includedItems;
+  if (data.usageRules !== undefined) patch.usageRules = data.usageRules || null;
+  if (data.seoTitle !== undefined) patch.seoTitle = data.seoTitle || null;
+  if (data.seoDescription !== undefined) patch.seoDescription = data.seoDescription || null;
+  if (data.categoryId !== undefined) patch.categoryId = data.categoryId;
+  if (data.brandId !== undefined) patch.brandId = data.brandId;
+
+  const { error: updateError } = await sb.from("Product").update(patch).eq("id", id);
+  if (updateError) return { success: false as const, error: updateError.message };
 
   if (data.images) {
-    await prisma.productImage.deleteMany({ where: { productId: id } });
-    await prisma.productImage.createMany({
-      data: data.images.map((img, i) => ({
-        productId: id,
-        url: img.url,
-        alt: img.alt || data.name || existing.name,
-        sortOrder: img.sortOrder ?? i,
-      })),
-    });
+    await sb.from("ProductImage").delete().eq("productId", id);
+    if (data.images.length) {
+      const { error: imgErr } = await sb.from("ProductImage").insert(
+        data.images.map((img, i) => ({
+          id: newId(),
+          productId: id,
+          url: img.url,
+          alt: img.alt || data.name || existing.name,
+          sortOrder: img.sortOrder ?? i,
+        })),
+      );
+      if (imgErr) return { success: false as const, error: imgErr.message };
+    }
   }
 
   if (data.specifications) {
-    await prisma.specification.deleteMany({ where: { productId: id } });
-    await prisma.specification.createMany({
-      data: data.specifications.map((s, i) => ({
-        productId: id,
-        label: s.label,
-        value: s.value,
-        sortOrder: s.sortOrder ?? i,
-      })),
-    });
+    await sb.from("Specification").delete().eq("productId", id);
+    if (data.specifications.length) {
+      const { error: specErr } = await sb.from("Specification").insert(
+        data.specifications.map((s, i) => ({
+          id: newId(),
+          productId: id,
+          label: s.label,
+          value: s.value,
+          sortOrder: s.sortOrder ?? i,
+        })),
+      );
+      if (specErr) return { success: false as const, error: specErr.message };
+    }
   }
 
   if (data.accessoryIds) {
-    await prisma.productAccessory.deleteMany({ where: { productId: id } });
+    await sb.from("ProductAccessory").delete().eq("productId", id);
     if (data.accessoryIds.length) {
-      await prisma.productAccessory.createMany({
-        data: data.accessoryIds.map((accessoryId) => ({ productId: id, accessoryId })),
-      });
+      const { error: accErr } = await sb.from("ProductAccessory").insert(
+        data.accessoryIds.map((accessoryId) => ({
+          id: newId(),
+          productId: id,
+          accessoryId,
+        })),
+      );
+      if (accErr) return { success: false as const, error: accErr.message };
     }
   }
 
   if (data.relatedProductIds) {
-    await prisma.relatedProduct.deleteMany({ where: { productId: id } });
+    await sb.from("RelatedProduct").delete().eq("productId", id);
     if (data.relatedProductIds.length) {
-      await prisma.relatedProduct.createMany({
-        data: data.relatedProductIds.map((relatedProductId) => ({
+      const { error: relErr } = await sb.from("RelatedProduct").insert(
+        data.relatedProductIds.map((relatedProductId) => ({
+          id: newId(),
           productId: id,
           relatedProductId,
         })),
-      });
+      );
+      if (relErr) return { success: false as const, error: relErr.message };
     }
   }
 
@@ -386,10 +523,32 @@ export async function updateProduct(id: string, raw: unknown) {
 
 export async function deleteProduct(id: string) {
   const user = await requireAdmin();
-  const product = await prisma.product.update({
-    where: { id },
-    data: { deletedAt: new Date(), isActive: false },
-  });
+  const sb = getAdminClient();
+  const { data: existing } = await sb
+    .from("Product")
+    .select("name, slug, sku")
+    .eq("id", id)
+    .is("deletedAt", null)
+    .maybeSingle();
+  if (!existing) return { success: false as const, error: "Məhsul tapılmadı" };
+
+  const stamp = Date.now();
+  const { data: product, error } = await sb
+    .from("Product")
+    .update({
+      deletedAt: nowIso(),
+      isActive: false,
+      // UNIQUE slug/sku azad olsun ki, eyni adda yenidən yaradıla bilsin
+      slug: `${existing.slug}-deleted-${stamp}`,
+      sku: existing.sku ? `${existing.sku}-DEL-${stamp}` : null,
+      updatedAt: nowIso(),
+    })
+    .eq("id", id)
+    .select("name")
+    .single();
+
+  if (error) return { success: false as const, error: error.message };
+
   await logActivity({
     userId: user.id,
     action: "DELETE",
@@ -405,20 +564,28 @@ export async function deleteProduct(id: string) {
 
 export async function duplicateProduct(id: string) {
   const user = await requireAdmin();
-  const source = await prisma.product.findFirst({
-    where: { id, deletedAt: null },
-    include: {
-      images: true,
-      specifications: true,
-      accessories: true,
-      relatedFrom: true,
-    },
-  });
+  const sb = getAdminClient();
+
+  const { data: source, error: fetchError } = await sb
+    .from("Product")
+    .select(
+      "*, images:ProductImage(*), specifications:Specification(*), accessories:ProductAccessory(*), relatedFrom:RelatedProduct(*)",
+    )
+    .eq("id", id)
+    .is("deletedAt", null)
+    .maybeSingle();
+
+  if (fetchError) return { success: false as const, error: fetchError.message };
   if (!source) return { success: false as const, error: "Tapılmadı" };
 
+  const copyId = newId();
   const slug = `${source.slug}-copy-${Date.now().toString(36)}`;
-  const copy = await prisma.product.create({
-    data: {
+  const now = nowIso();
+
+  const { data: copy, error: createError } = await sb
+    .from("Product")
+    .insert({
+      id: copyId,
       name: `${source.name} (kopiya)`,
       slug,
       sku: source.sku ? `${source.sku}-COPY` : null,
@@ -444,32 +611,62 @@ export async function duplicateProduct(id: string) {
       seoDescription: source.seoDescription,
       categoryId: source.categoryId,
       brandId: source.brandId,
-      images: {
-        create: source.images.map((img) => ({
-          url: img.url,
-          alt: img.alt,
-          sortOrder: img.sortOrder,
-        })),
-      },
-      specifications: {
-        create: source.specifications.map((s) => ({
-          label: s.label,
-          value: s.value,
-          sortOrder: s.sortOrder,
-        })),
-      },
-      accessories: {
-        create: source.accessories.map((a) => ({
-          accessoryId: a.accessoryId,
-        })),
-      },
-      relatedFrom: {
-        create: source.relatedFrom.map((r) => ({
-          relatedProductId: r.relatedProductId,
-        })),
-      },
-    },
-  });
+      createdAt: now,
+      updatedAt: now,
+    })
+    .select()
+    .single();
+
+  if (createError) return { success: false as const, error: createError.message };
+
+  const images = (source.images as { url: string; alt: string | null; sortOrder: number }[]) || [];
+  if (images.length) {
+    await sb.from("ProductImage").insert(
+      images.map((img) => ({
+        id: newId(),
+        productId: copyId,
+        url: img.url,
+        alt: img.alt,
+        sortOrder: img.sortOrder,
+      })),
+    );
+  }
+
+  const specifications =
+    (source.specifications as { label: string; value: string; sortOrder: number }[]) || [];
+  if (specifications.length) {
+    await sb.from("Specification").insert(
+      specifications.map((s) => ({
+        id: newId(),
+        productId: copyId,
+        label: s.label,
+        value: s.value,
+        sortOrder: s.sortOrder,
+      })),
+    );
+  }
+
+  const accessories = (source.accessories as { accessoryId: string }[]) || [];
+  if (accessories.length) {
+    await sb.from("ProductAccessory").insert(
+      accessories.map((a) => ({
+        id: newId(),
+        productId: copyId,
+        accessoryId: a.accessoryId,
+      })),
+    );
+  }
+
+  const relatedFrom = (source.relatedFrom as { relatedProductId: string }[]) || [];
+  if (relatedFrom.length) {
+    await sb.from("RelatedProduct").insert(
+      relatedFrom.map((r) => ({
+        id: newId(),
+        productId: copyId,
+        relatedProductId: r.relatedProductId,
+      })),
+    );
+  }
 
   await logActivity({
     userId: user.id,
@@ -484,9 +681,10 @@ export async function duplicateProduct(id: string) {
 
 export async function toggleFeatured(id: string) {
   const user = await requireAdmin();
-  const p = await prisma.product.findUnique({ where: { id } });
+  const sb = getAdminClient();
+  const { data: p } = await sb.from("Product").select("isFeatured").eq("id", id).maybeSingle();
   if (!p) return { success: false as const, error: "Tapılmadı" };
-  await prisma.product.update({ where: { id }, data: { isFeatured: !p.isFeatured } });
+  await sb.from("Product").update({ isFeatured: !p.isFeatured, updatedAt: nowIso() }).eq("id", id);
   await logActivity({ userId: user.id, action: "TOGGLE_FEATURED", entity: "Product", entityId: id });
   revalidatePath("/");
   revalidatePath("/admin/mehsullar");
@@ -495,9 +693,10 @@ export async function toggleFeatured(id: string) {
 
 export async function toggleActive(id: string) {
   const user = await requireAdmin();
-  const p = await prisma.product.findUnique({ where: { id } });
+  const sb = getAdminClient();
+  const { data: p } = await sb.from("Product").select("isActive").eq("id", id).maybeSingle();
   if (!p) return { success: false as const, error: "Tapılmadı" };
-  await prisma.product.update({ where: { id }, data: { isActive: !p.isActive } });
+  await sb.from("Product").update({ isActive: !p.isActive, updatedAt: nowIso() }).eq("id", id);
   await logActivity({ userId: user.id, action: "TOGGLE_ACTIVE", entity: "Product", entityId: id });
   revalidatePath("/admin/mehsullar");
   revalidatePath("/avadanliqlar");
@@ -506,43 +705,50 @@ export async function toggleActive(id: string) {
 
 export async function archiveProduct(id: string) {
   const user = await requireAdmin();
-  await prisma.product.update({
-    where: { id },
-    data: { archivedAt: new Date(), isActive: false },
-  });
+  const sb = getAdminClient();
+  await sb
+    .from("Product")
+    .update({ archivedAt: nowIso(), isActive: false, updatedAt: nowIso() })
+    .eq("id", id);
   await logActivity({ userId: user.id, action: "ARCHIVE", entity: "Product", entityId: id });
   revalidatePath("/admin/mehsullar");
   return { success: true as const };
 }
 
-export async function bulkProductAction(ids: string[], action: "activate" | "deactivate" | "delete" | "feature" | "unfeature" | "archive") {
+export async function bulkProductAction(
+  ids: string[],
+  action: "activate" | "deactivate" | "delete" | "feature" | "unfeature" | "archive",
+) {
   const user = await requireAdmin();
   if (!ids.length) return { success: false as const, error: "Seçim yoxdur" };
 
+  const sb = getAdminClient();
+  const now = nowIso();
+
   switch (action) {
     case "activate":
-      await prisma.product.updateMany({ where: { id: { in: ids } }, data: { isActive: true } });
+      await sb.from("Product").update({ isActive: true, updatedAt: now }).in("id", ids);
       break;
     case "deactivate":
-      await prisma.product.updateMany({ where: { id: { in: ids } }, data: { isActive: false } });
+      await sb.from("Product").update({ isActive: false, updatedAt: now }).in("id", ids);
       break;
     case "delete":
-      await prisma.product.updateMany({
-        where: { id: { in: ids } },
-        data: { deletedAt: new Date(), isActive: false },
-      });
+      await sb
+        .from("Product")
+        .update({ deletedAt: now, isActive: false, updatedAt: now })
+        .in("id", ids);
       break;
     case "feature":
-      await prisma.product.updateMany({ where: { id: { in: ids } }, data: { isFeatured: true } });
+      await sb.from("Product").update({ isFeatured: true, updatedAt: now }).in("id", ids);
       break;
     case "unfeature":
-      await prisma.product.updateMany({ where: { id: { in: ids } }, data: { isFeatured: false } });
+      await sb.from("Product").update({ isFeatured: false, updatedAt: now }).in("id", ids);
       break;
     case "archive":
-      await prisma.product.updateMany({
-        where: { id: { in: ids } },
-        data: { archivedAt: new Date(), isActive: false },
-      });
+      await sb
+        .from("Product")
+        .update({ archivedAt: now, isActive: false, updatedAt: now })
+        .in("id", ids);
       break;
   }
 
@@ -559,9 +765,11 @@ export async function bulkProductAction(ids: string[], action: "activate" | "dea
 
 export async function reorderProducts(orderedIds: string[]) {
   const user = await requireAdmin();
+  const sb = getAdminClient();
+  const now = nowIso();
   await Promise.all(
     orderedIds.map((id, index) =>
-      prisma.product.update({ where: { id }, data: { sortOrder: index } }),
+      sb.from("Product").update({ sortOrder: index, updatedAt: now }).eq("id", id),
     ),
   );
   await logActivity({ userId: user.id, action: "REORDER", entity: "Product", details: { orderedIds } });
@@ -572,39 +780,78 @@ export async function reorderProducts(orderedIds: string[]) {
 
 export async function incrementView(productId: string) {
   try {
-    await prisma.product.update({
-      where: { id: productId },
-      data: { viewCount: { increment: 1 } },
+    const sb = getAdminClient();
+    const { data: product } = await sb
+      .from("Product")
+      .select("viewCount")
+      .eq("id", productId)
+      .maybeSingle();
+
+    if (product) {
+      await sb
+        .from("Product")
+        .update({ viewCount: (product.viewCount ?? 0) + 1, updatedAt: nowIso() })
+        .eq("id", productId);
+    }
+
+    await sb.from("ProductView").insert({
+      id: newId(),
+      productId,
+      createdAt: nowIso(),
     });
-    await prisma.productView.create({ data: { productId } });
   } catch (err) {
     console.error("[incrementView]", err);
   }
 }
 
-export async function trackWhatsAppClick(productId: string | null, priceType?: string, source?: string) {
+export async function trackWhatsAppClick(
+  productId: string | null,
+  priceType?: string,
+  source?: string,
+) {
+  const sb = getAdminClient();
+
   if (productId) {
-    await prisma.product.update({
-      where: { id: productId },
-      data: { whatsappClicks: { increment: 1 } },
-    });
+    const { data: product } = await sb
+      .from("Product")
+      .select("whatsappClicks")
+      .eq("id", productId)
+      .maybeSingle();
+
+    if (product) {
+      await sb
+        .from("Product")
+        .update({
+          whatsappClicks: (product.whatsappClicks ?? 0) + 1,
+          updatedAt: nowIso(),
+        })
+        .eq("id", productId);
+    }
   }
-  await prisma.whatsAppClick.create({
-    data: {
-      productId,
-      priceType: (priceType as "DAILY" | "WEEKLY" | "MONTHLY") || null,
-      source: source || "product",
-    },
+
+  await sb.from("WhatsAppClick").insert({
+    id: newId(),
+    productId,
+    priceType: (priceType as PriceType) || null,
+    source: source || "product",
+    createdAt: nowIso(),
   });
+
   return { success: true as const };
 }
 
 export async function getFeaturedProducts(limit = 6) {
-  const items = await prisma.product.findMany({
-    where: { isActive: true, isFeatured: true, deletedAt: null, archivedAt: null },
-    include: productInclude,
-    orderBy: { sortOrder: "asc" },
-    take: limit,
-  });
-  return items.map((p) => serializeProduct(p as never));
+  const sb = getAdminClient();
+  const { data: items, error } = await sb
+    .from("Product")
+    .select(PRODUCT_LIST_SELECT)
+    .eq("isActive", true)
+    .eq("isFeatured", true)
+    .is("deletedAt", null)
+    .is("archivedAt", null)
+    .order("sortOrder", { ascending: true })
+    .limit(limit);
+
+  if (error) throw error;
+  return (items || []).map((p) => normalizeListProduct(p as unknown as Record<string, unknown>));
 }

@@ -1,5 +1,12 @@
-import { AvailabilityStatus } from "@prisma/client";
 import { z } from "zod";
+
+const availabilityStatuses = [
+  "AVAILABLE",
+  "RESERVED",
+  "RENTED",
+  "SERVICE",
+  "UNAVAILABLE",
+] as const;
 
 export const specificationSchema = z.object({
   label: z.string().trim().min(1, "Xüsusiyyət adı tələb olunur").max(100),
@@ -32,7 +39,7 @@ export const productSchema = z.object({
   showWeeklyPrice: z.boolean().default(true),
   showMonthlyPrice: z.boolean().default(false),
   mainImage: z.string().trim().max(500).optional().or(z.literal("")).nullable(),
-  status: z.enum(AvailabilityStatus).default(AvailabilityStatus.AVAILABLE),
+  status: z.enum(availabilityStatuses).default("AVAILABLE"),
   badge: z.string().trim().max(50).optional().or(z.literal("")).nullable(),
   sortOrder: z.number().int().default(0),
   isFeatured: z.boolean().default(false),

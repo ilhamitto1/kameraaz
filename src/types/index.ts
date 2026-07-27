@@ -1,17 +1,7 @@
-import type {
-  AvailabilityStatus,
-  Brand,
-  Category,
-  MessageStatus,
-  PriceType,
-  Product,
-  ProductImage,
-  Specification,
-} from "@prisma/client";
+import type { AvailabilityStatus, MessageStatus, PriceType } from "@/types/database";
 
 export type { AvailabilityStatus, MessageStatus, PriceType };
 
-/** Session user shape exposed via NextAuth session/JWT callbacks. */
 export interface SessionUser {
   id: string;
   email: string;
@@ -19,7 +9,84 @@ export interface SessionUser {
   role: string;
 }
 
-/** Product row including its most commonly joined relations. */
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  image?: string | null;
+  icon?: string | null;
+  sortOrder: number;
+  isVisible: boolean;
+  showInNav: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+}
+
+export interface Brand {
+  id: string;
+  name: string;
+  slug: string;
+  logo?: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  sku?: string | null;
+  shortDesc?: string | null;
+  longDesc?: string | null;
+  dailyPrice?: number | null;
+  weeklyPrice?: number | null;
+  monthlyPrice?: number | null;
+  deposit?: number | null;
+  showDailyPrice: boolean;
+  showWeeklyPrice: boolean;
+  showMonthlyPrice: boolean;
+  mainImage?: string | null;
+  status: AvailabilityStatus;
+  badge?: string | null;
+  sortOrder: number;
+  isFeatured: boolean;
+  isActive: boolean;
+  isNew: boolean;
+  includedItems: string[];
+  usageRules?: string | null;
+  seoTitle?: string | null;
+  seoDescription?: string | null;
+  viewCount: number;
+  whatsappClicks: number;
+  categoryId: string;
+  brandId: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt?: string | null;
+  archivedAt?: string | null;
+}
+
+export interface ProductImage {
+  id: string;
+  url: string;
+  alt?: string | null;
+  sortOrder: number;
+  productId: string;
+  createdAt: string;
+}
+
+export interface Specification {
+  id: string;
+  label: string;
+  value: string;
+  sortOrder: number;
+  productId: string;
+}
+
 export type ProductWithRelations = Product & {
   category: Category;
   brand: Brand;
@@ -27,7 +94,6 @@ export type ProductWithRelations = Product & {
   specifications: Specification[];
 };
 
-/** Serialized product safe to pass from server components to client components. */
 export type SerializedProduct = Omit<
   ProductWithRelations,
   "dailyPrice" | "weeklyPrice" | "monthlyPrice" | "deposit"

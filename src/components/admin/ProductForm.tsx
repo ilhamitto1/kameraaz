@@ -164,13 +164,18 @@ export function ProductForm({
   async function upload(file: File) {
     setUploading(true);
     setError("");
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await fetch("/api/upload", { method: "POST", body: fd });
-    const json = await res.json();
-    setUploading(false);
-    if (json.success && json.data?.url) setMainImage(json.data.url);
-    else setError(json.error || "Şəkil yüklənmədi");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const json = await res.json().catch(() => null);
+      if (json?.success && json.data?.url) setMainImage(json.data.url);
+      else setError(json?.error || "Şəkil yüklənmədi");
+    } catch {
+      setError("Şəkil yüklənərkən xəta baş verdi");
+    } finally {
+      setUploading(false);
+    }
   }
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -234,13 +239,8 @@ export function ProductForm({
       images: (() => {
         const prev =
           (initial?.images as { url: string; alt?: string | null; sortOrder?: number }[]) || [];
-        if (!mainImage) {
-          return prev.map((img, i) => ({
-            url: img.url,
-            alt: img.alt || name.trim(),
-            sortOrder: i,
-          }));
-        }
+        // Əsas şəkil silinibsə qalereyanı da təmizlə
+        if (!mainImage) return [];
         if (prev.length) {
           const rest = prev.filter(
             (img) => img.url !== mainImage && img.url !== (initial?.mainImage as string),
