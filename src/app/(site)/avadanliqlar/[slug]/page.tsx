@@ -5,7 +5,6 @@ import { getPublicSettings } from "@/actions/admin";
 import { ProductDetailClient } from "@/components/products/ProductDetailClient";
 import { ProductCard } from "@/components/products/ProductCard";
 import {
-  getAllProductSlugs,
   getCachedProductBySlug,
   getCachedRelatedByCategory,
 } from "@/lib/public-data";
@@ -13,16 +12,13 @@ import { absoluteUrl, formatPrice, getSiteUrl } from "@/lib/utils";
 import { az } from "@/lib/i18n/az";
 
 export const revalidate = 120;
+// On-demand ISR only — avoid prerendering every product during `next build`
+export const dynamicParams = true;
 
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateStaticParams() {
-  try {
-    const products = await getAllProductSlugs();
-    return products.map((p) => ({ slug: p.slug }));
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

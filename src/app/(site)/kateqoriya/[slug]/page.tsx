@@ -2,22 +2,18 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { ProductCard } from "@/components/products/ProductCard";
 import {
-  getAllCategorySlugs,
   getCachedCategoryListing,
 } from "@/lib/public-data";
 import { absoluteUrl, getSiteUrl } from "@/lib/utils";
 
 export const revalidate = 120;
+// On-demand ISR only — avoid build-time DB stampede across all category slugs
+export const dynamicParams = true;
 
 type Props = { params: Promise<{ slug: string }> };
 
 export async function generateStaticParams() {
-  try {
-    const cats = await getAllCategorySlugs();
-    return cats.map((c) => ({ slug: c.slug }));
-  } catch {
-    return [];
-  }
+  return [];
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
