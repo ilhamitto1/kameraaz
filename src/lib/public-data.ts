@@ -249,7 +249,7 @@ export function getCachedProductBySlug(slug: string) {
   return unstable_cache(
     async () => {
       const sb = getAdminClient();
-      const { data: product } = await sb
+      const { data: product, error } = await sb
         .from("Product")
         .select(
           `
@@ -259,11 +259,11 @@ export function getCachedProductBySlug(slug: string) {
           images:ProductImage(id, url, alt, sortOrder),
           specifications:Specification(id, label, value, sortOrder),
           bookingDates:BookingDate(id, startDate, endDate),
-          accessories:ProductAccessory(
-            accessory:Product(${CARD_SELECT_WITH_ACTIVE})
+          accessories:ProductAccessory!ProductAccessory_productId_fkey(
+            accessory:Product!ProductAccessory_accessoryId_fkey(${CARD_SELECT_WITH_ACTIVE})
           ),
-          relatedFrom:RelatedProduct(
-            relatedProduct:Product(${CARD_SELECT_WITH_ACTIVE})
+          relatedFrom:RelatedProduct!RelatedProduct_productId_fkey(
+            relatedProduct:Product!RelatedProduct_relatedProductId_fkey(${CARD_SELECT_WITH_ACTIVE})
           )
         `,
         )
@@ -272,9 +272,35 @@ export function getCachedProductBySlug(slug: string) {
         .eq("isActive", true)
         .maybeSingle();
 
-      if (!product) return null;
+      if (error) {
+        console.error("[getCachedProductBySlug]", slug, error.message);
+      }
 
-      const serialized = serializeRow(product) as Record<string, unknown>;
+      // Nested embed uğursuz olsa belə əsas məhsulu gətir
+      let row = product;
+      if (!row) {
+        const { data: fallback } = await sb
+          .from("Product")
+          .select(
+            `
+            *,
+            category:Category(id, name, slug),
+            brand:Brand(id, name, slug),
+            images:ProductImage(id, url, alt, sortOrder),
+            specifications:Specification(id, label, value, sortOrder),
+            bookingDates:BookingDate(id, startDate, endDate)
+          `,
+          )
+          .eq("slug", slug)
+          .is("deletedAt", null)
+          .eq("isActive", true)
+          .maybeSingle();
+        row = fallback;
+      }
+
+      if (!row) return null;
+
+      const serialized = serializeRow(row) as Record<string, unknown>;
 
       if (Array.isArray(serialized.images)) {
         serialized.images = [...(serialized.images as { sortOrder?: number }[])].sort(
@@ -293,7 +319,7 @@ export function getCachedProductBySlug(slug: string) {
       }
 
       const accessories = (
-        (product.accessories as { accessory: Parameters<typeof serializeCard>[0] & {
+        (row.accessories as { accessory: Parameters<typeof serializeCard>[0] & {
           deletedAt?: string | null;
           isActive?: boolean;
           archivedAt?: string | null;
@@ -304,7 +330,7 @@ export function getCachedProductBySlug(slug: string) {
         .map(serializeCard);
 
       const relatedProducts = (
-        (product.relatedFrom as { relatedProduct: Parameters<typeof serializeCard>[0] & {
+        (row.relatedFrom as { relatedProduct: Parameters<typeof serializeCard>[0] & {
           deletedAt?: string | null;
           isActive?: boolean;
           archivedAt?: string | null;
@@ -316,7 +342,7 @@ export function getCachedProductBySlug(slug: string) {
 
       return { ...serialized, accessories, relatedProducts } as Record<string, unknown>;
     },
-    [`product-${slug}`],
+    [`product-${slug}-v2`],
     { revalidate: 120, tags: ["products", `product-${slug}`] },
   )();
 }

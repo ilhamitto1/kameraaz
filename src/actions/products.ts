@@ -19,18 +19,18 @@ const PRODUCT_DETAIL_SELECT = `
   images:ProductImage(*),
   specifications:Specification(*),
   bookingDates:BookingDate(*),
-  accessories:ProductAccessory(
+  accessories:ProductAccessory!ProductAccessory_productId_fkey(
     *,
-    accessory:Product(
+    accessory:Product!ProductAccessory_accessoryId_fkey(
       *,
       brand:Brand(*),
       category:Category(*),
       images:ProductImage(*)
     )
   ),
-  relatedFrom:RelatedProduct(
+  relatedFrom:RelatedProduct!RelatedProduct_productId_fkey(
     *,
-    relatedProduct:Product(
+    relatedProduct:Product!RelatedProduct_relatedProductId_fkey(
       *,
       brand:Brand(*),
       category:Category(*),
@@ -244,7 +244,7 @@ export async function getProductById(id: string) {
   const { data: product, error } = await sb
     .from("Product")
     .select(
-      `${PRODUCT_LIST_SELECT}, accessories:ProductAccessory(*), relatedFrom:RelatedProduct(*), bookingDates:BookingDate(*)`,
+      `${PRODUCT_LIST_SELECT}, accessories:ProductAccessory!ProductAccessory_productId_fkey(*), relatedFrom:RelatedProduct!RelatedProduct_productId_fkey(*), bookingDates:BookingDate(*)`,
     )
     .eq("id", id)
     .is("deletedAt", null)
@@ -571,7 +571,7 @@ export async function duplicateProduct(id: string) {
   const { data: source, error: fetchError } = await sb
     .from("Product")
     .select(
-      "*, images:ProductImage(*), specifications:Specification(*), accessories:ProductAccessory(*), relatedFrom:RelatedProduct(*)",
+      "*, images:ProductImage(*), specifications:Specification(*), accessories:ProductAccessory!ProductAccessory_productId_fkey(*), relatedFrom:RelatedProduct!RelatedProduct_productId_fkey(*)",
     )
     .eq("id", id)
     .is("deletedAt", null)
