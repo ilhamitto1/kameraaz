@@ -1,7 +1,7 @@
 -- Kameraz.com — Supabase SQL
 --
--- YALNIZ BİR FAYL İŞƏ SAL:
---   supabase/full-setup.sql  → SQL Editor-də bütün məzmunu Run et
+-- SQL Editor-də SIRAYLA:
+--   1) supabase/full-setup.sql   — cədvəllər + seed
+--   2) supabase/03-storage.sql   — şəkil yükləmə (Cloudinary lazım deyil)
 --
--- Köhnə 01-schema.sql / 02-seed-data.sql ayrı-ayrı işə salma.
--- full-setup.sql cədvəl + təmiz seed birlikdə edir (FK xətası olmur).
+-- Authentication → Users → admin@kameraz.com yarat (Auto Confirm)

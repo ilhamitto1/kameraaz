@@ -175,7 +175,7 @@ export interface SettingsShape {
 
 export interface UploadResult {
   url: string;
-  provider: "local" | "cloudinary";
+  provider: "local" | "supabase" | "cloudinary";
   width?: number;
   height?: number;
   bytes?: number;
