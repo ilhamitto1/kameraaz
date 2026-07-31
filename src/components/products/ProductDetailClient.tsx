@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { RecIndicator, TimecodePrice } from "@/components/ui/Form";
+import { RecIndicator, TimecodePrice, Textarea, Label, Input } from "@/components/ui/Form";
 import { formatPrice, absoluteUrl } from "@/lib/utils";
 import {
   buildWhatsAppMessage,
@@ -31,6 +31,7 @@ type Product = {
   category?: { name: string };
   images?: { url: string; alt?: string | null }[];
   specifications?: { label: string; value: string }[];
+  bookingDates?: { startDate: string | Date; endDate: string | Date }[];
 };
 
 export function ProductDetailClient({
@@ -53,6 +54,9 @@ export function ProductDetailClient({
 
   const [active, setActive] = useState(0);
   const [priceType, setPriceType] = useState<"DAILY" | "WEEKLY" | "MONTHLY">("DAILY");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [note, setNote] = useState("");
   const [fullscreen, setFullscreen] = useState(false);
 
   useEffect(() => {
@@ -95,8 +99,8 @@ export function ProductDetailClient({
     price,
     priceType,
     productUrl,
-    dates: null,
-    note: null,
+    dates: startDate && endDate ? { startDate, endDate } : null,
+    note,
     template: settings.whatsappTemplate,
   });
 
@@ -217,12 +221,36 @@ export function ProductDetailClient({
           )}
         </div>
 
-        {product.shortDesc && (
-          <p className="mt-6 text-[var(--fg-muted)]">{product.shortDesc}</p>
+        <p className="mt-6 text-[var(--fg-muted)]">{product.shortDesc}</p>
+
+        <div className="mt-8 grid gap-3 sm:grid-cols-2">
+          <div>
+            <Label>Başlanğıc</Label>
+            <Input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </div>
+          <div>
+            <Label>Son</Label>
+            <Input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </div>
+        </div>
+        {!!product.bookingDates?.length && (
+          <p className="mt-2 text-xs text-[var(--fg-muted)]">
+            Məşğul tarixlər:{" "}
+            {product.bookingDates
+              .map(
+                (b) =>
+                  `${new Date(b.startDate).toLocaleDateString("az-AZ")}–${new Date(b.endDate).toLocaleDateString("az-AZ")}`,
+              )
+              .join(", ")}
+          </p>
         )}
+        <div className="mt-4">
+          <Label>Əlavə qeyd</Label>
+          <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="İstəyə görə qeyd..." />
+        </div>
 
         {/* Desktop CTA */}
-        <div className="mt-8 hidden lg:block">
+        <div className="mt-6 hidden lg:block">
           <a
             href={waUrl}
             target="_blank"
