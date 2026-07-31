@@ -107,7 +107,6 @@ export function ProductDetailClient({
   const waUrl = getWhatsAppUrlForDevice(settings.whatsappNumber, message);
 
   function onWhatsApp() {
-    // Tracking async — iOS-da await-dən sonra window.open bloklanır
     void trackWhatsAppClick(product.id, priceType, "product-detail").catch(() => {});
   }
 
@@ -121,12 +120,15 @@ export function ProductDetailClient({
     }
   }
 
+  const reserveBtnClass =
+    "flex h-12 w-full items-center justify-center rounded-md bg-[#25D366] text-base font-semibold text-[#052e16] shadow-[0_8px_24px_rgba(37,211,102,0.28)] touch-manipulation active:scale-[0.98] hover:brightness-110";
+
   return (
     <div className="grid gap-10 lg:grid-cols-2">
       <div>
-        <div
-          data-cursor="zoom"
-          className="relative aspect-[4/5] overflow-hidden border border-[var(--border)] bg-[var(--bg-elevated)]"
+        <button
+          type="button"
+          className="relative aspect-[4/5] w-full overflow-hidden border border-[var(--border)] bg-[var(--bg-elevated)] touch-manipulation"
           onClick={() => images.length && setFullscreen(true)}
         >
           {images[active] ? (
@@ -137,10 +139,7 @@ export function ProductDetailClient({
               {product.name.slice(0, 1)}
             </div>
           )}
-          <div className="absolute left-3 top-3 mono text-[10px] text-[var(--fg-muted)] bg-black/50 px-2 py-1">
-            EXIF · f/2.8 · ISO 400 · 1/125
-          </div>
-        </div>
+        </button>
         {images.length > 1 && (
           <div className="mt-3 flex gap-2 overflow-x-auto">
             {images.map((src, i) => (
@@ -148,7 +147,7 @@ export function ProductDetailClient({
                 key={src + i}
                 type="button"
                 onClick={() => setActive(i)}
-                className={`h-16 w-16 shrink-0 border ${
+                className={`h-16 w-16 shrink-0 border touch-manipulation ${
                   i === active ? "border-[var(--accent)]" : "border-[var(--border)]"
                 }`}
               >
@@ -166,9 +165,14 @@ export function ProductDetailClient({
             <p className="text-xs uppercase tracking-[0.2em] text-[var(--fg-muted)]">
               {product.brand?.name} · {product.category?.name}
             </p>
-            <h1 className="display-font mt-2 text-4xl md:text-5xl">{product.name}</h1>
+            <h1 className="display-font mt-2 text-3xl sm:text-4xl md:text-5xl">{product.name}</h1>
           </div>
-          <button type="button" onClick={share} aria-label="Paylaş" className="p-2 border border-[var(--border)]">
+          <button
+            type="button"
+            onClick={share}
+            aria-label="Paylaş"
+            className="border border-[var(--border)] p-2 touch-manipulation"
+          >
             <Share2 className="h-4 w-4" />
           </button>
         </div>
@@ -178,7 +182,6 @@ export function ProductDetailClient({
         </div>
 
         <div className="mt-6 border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
-          <p className="mono text-[10px] text-[var(--fg-muted)] mb-2">VIEWFINDER // PRICE</p>
           <TimecodePrice
             value={formatPrice(price).replace(" AZN", "")}
             suffix={
@@ -190,7 +193,11 @@ export function ProductDetailClient({
               <button
                 type="button"
                 onClick={() => setPriceType("DAILY")}
-                className={`px-3 py-1.5 text-xs border ${priceType === "DAILY" ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)]"}`}
+                className={`border px-3 py-1.5 text-xs touch-manipulation ${
+                  priceType === "DAILY"
+                    ? "border-[var(--accent)] text-[var(--accent)]"
+                    : "border-[var(--border)]"
+                }`}
               >
                 Günlük {formatPrice(product.dailyPrice)}
               </button>
@@ -199,7 +206,11 @@ export function ProductDetailClient({
               <button
                 type="button"
                 onClick={() => setPriceType("WEEKLY")}
-                className={`px-3 py-1.5 text-xs border ${priceType === "WEEKLY" ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)]"}`}
+                className={`border px-3 py-1.5 text-xs touch-manipulation ${
+                  priceType === "WEEKLY"
+                    ? "border-[var(--accent)] text-[var(--accent)]"
+                    : "border-[var(--border)]"
+                }`}
               >
                 Həftəlik {formatPrice(product.weeklyPrice)}
               </button>
@@ -208,7 +219,11 @@ export function ProductDetailClient({
               <button
                 type="button"
                 onClick={() => setPriceType("MONTHLY")}
-                className={`px-3 py-1.5 text-xs border ${priceType === "MONTHLY" ? "border-[var(--accent)] text-[var(--accent)]" : "border-[var(--border)]"}`}
+                className={`border px-3 py-1.5 text-xs touch-manipulation ${
+                  priceType === "MONTHLY"
+                    ? "border-[var(--accent)] text-[var(--accent)]"
+                    : "border-[var(--border)]"
+                }`}
               >
                 Aylıq {formatPrice(product.monthlyPrice)}
               </button>
@@ -221,7 +236,9 @@ export function ProductDetailClient({
           )}
         </div>
 
-        <p className="mt-6 text-[var(--fg-muted)]">{product.shortDesc}</p>
+        {product.shortDesc && (
+          <p className="mt-6 text-[var(--fg-muted)]">{product.shortDesc}</p>
+        )}
 
         <div className="mt-8 grid gap-3 sm:grid-cols-2">
           <div>
@@ -249,15 +266,13 @@ export function ProductDetailClient({
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} placeholder="İstəyə görə qeyd..." />
         </div>
 
-        {/* Desktop CTA */}
-        <div className="mt-6 hidden lg:block">
+        <div className="mt-6 hidden md:block">
           <a
             href={waUrl}
             target="_blank"
             rel="noopener noreferrer"
             onClick={onWhatsApp}
-            data-cursor="ask"
-            className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-sm bg-[#25D366] px-7 text-base font-semibold text-[#052e16] transition hover:brightness-110"
+            className={reserveBtnClass}
           >
             Rezerv et
           </a>
@@ -314,19 +329,16 @@ export function ProductDetailClient({
         </div>
       )}
 
-      {/* Mobile fixed CTA — dock-un üstündə, həmişə kliklənə bilən <a> */}
       <div
-        className="fixed inset-x-0 z-[60] px-3 lg:hidden"
-        style={{
-          bottom: "calc(4.25rem + env(safe-area-inset-bottom, 0px))",
-        }}
+        className="fixed inset-x-0 z-[60] px-3 md:hidden"
+        style={{ bottom: "calc(4.25rem + env(safe-area-inset-bottom, 0px))" }}
       >
         <a
           href={waUrl}
           target="_blank"
           rel="noopener noreferrer"
           onClick={onWhatsApp}
-          className="flex h-12 w-full items-center justify-center rounded-xl bg-[#25D366] text-base font-semibold text-[#052e16] shadow-[0_8px_30px_rgba(37,211,102,0.35)] touch-manipulation active:scale-[0.98]"
+          className={`${reserveBtnClass} rounded-xl`}
         >
           Rezerv et
         </a>
