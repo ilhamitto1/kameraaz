@@ -1,3 +1,5 @@
+import { CustomCursor } from "@/components/cursor/CustomCursor";
+import { LoadingScreen } from "@/components/layout/LoadingScreen";
 import { Navbar } from "@/components/layout/Navbar";
 import { Footer } from "@/components/layout/Footer";
 import { MaintenanceScreen } from "@/components/layout/MaintenanceScreen";
@@ -52,6 +54,8 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
   return (
     <>
       <AnnouncementBar text={settings.announcementBar} />
+      <LoadingScreen />
+      <CustomCursor />
       <Navbar items={items} whatsappNumber={settings.whatsappNumber} />
       <main className="min-h-screen">{children}</main>
       <Footer
